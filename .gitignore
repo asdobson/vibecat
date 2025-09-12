@@ -129,3 +129,7 @@ Desktop.ini
 !VibeCat/bin/
 !VibeCat/bin/ffmpeg-bin/
 !VibeCat/bin/ffmpeg-bin/*.exe
+
+# Local development files
+sync-to-windows.sh
+VibeCat_Project_Plan.md
