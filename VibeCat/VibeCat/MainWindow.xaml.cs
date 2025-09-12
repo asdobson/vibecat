@@ -5,8 +5,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
-using FFMpegCore;
+using System.Windows.Media.Animation;
 using System.IO;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -27,137 +26,101 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
-    private DispatcherTimer? _frameTimer;
-    private int _currentFrame = 0;
-    private List<BitmapSource> _frames = new();
-    private bool _isClickThrough = true; // Start in click-through mode
+    private Storyboard? _animationStoryboard;
+    private readonly List<BitmapSource> _frames = new();
+    private bool _isClickThrough = true;
     private DateTime _lastClickTime = DateTime.MinValue;
+    private IntPtr _windowHandle;
 
     public MainWindow()
     {
         InitializeComponent();
-        
-        // Configure FFmpeg paths on startup
-        ConfigureFFmpeg();
-        
-        // Set up mouse interactions
-        this.MouseLeftButtonDown += Window_MouseLeftButtonDown;
-        
-        // Load the actual cat video
+        MouseLeftButtonDown += Window_MouseLeftButtonDown;
         _ = LoadCatVideoAsync();
-    }
-    
-    private void ConfigureFFmpeg()
-    {
-        // Set FFmpeg location to the included binaries
-        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-        var parent = Directory.GetParent(baseDir);
-        if (parent?.Parent?.Parent != null)
-        {
-            var ffmpegPath = Path.Combine(parent.Parent.Parent.FullName, "ffmpeg-bin");
-            FFMpegCore.GlobalFFOptions.Configure(options => options.BinaryFolder = ffmpegPath);
-        }
     }
     
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // Detect double-click
         var now = DateTime.Now;
         if ((now - _lastClickTime).TotalMilliseconds < 300)
-        {
-            // Double click detected - toggle UI visibility
-            ToggleUIVisibility();
-        }
+            ToggleClickThrough();
         else if (!_isClickThrough)
-        {
-            // Single click - allow dragging if not in click-through mode
-            this.DragMove();
-        }
+            DragMove();
         _lastClickTime = now;
     }
     
-    private void ToggleUIVisibility()
+    private void ToggleClickThrough()
     {
-        _isClickThrough = !_isClickThrough;
-        
-        if (_isClickThrough)
-        {
-            // Hide UI and enable click-through
-            CloseButton.Visibility = Visibility.Collapsed;
-            SetClickThrough(true);
-        }
-        else
-        {
-            // Show UI and disable click-through
-            CloseButton.Visibility = Visibility.Visible;
-            SetClickThrough(false);
-        }
+        SetClickThrough(!_isClickThrough);
     }
 
     private async Task LoadCatVideoAsync()
     {
-        string videoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "cat-vibing.mp4");
-        var processor = new Services.VideoProcessor();
-        _frames = await processor.ExtractFramesAsync(videoPath, 60);
-        StartVideoPlayback();
+        var framesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "frames");
+        var frameFiles = await Task.Run(() => 
+            Directory.GetFiles(framesPath, "*.png").OrderBy(f => f).ToList());
+        
+        foreach (var frameFile in frameFiles)
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.UriSource = new Uri(frameFile, UriKind.Absolute);
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            _frames.Add(bitmap);
+        }
+        
+        if (_frames.Count > 0)
+            StartVideoPlayback();
     }
 
 
     private void StartVideoPlayback()
     {
-        _frameTimer = new DispatcherTimer();
-        _frameTimer.Interval = TimeSpan.FromMilliseconds(33); // ~30 FPS
-        _frameTimer.Tick += (s, e) =>
+        var animation = new ObjectAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+        
+        double frameTime = 0;
+        foreach (var frame in _frames)
         {
-            if (_frames.Count > 0)
-            {
-                VideoDisplay.Source = _frames[_currentFrame];
-                _currentFrame = (_currentFrame + 1) % _frames.Count;
-            }
-        };
-        _frameTimer.Start();
+            animation.KeyFrames.Add(new DiscreteObjectKeyFrame(frame, TimeSpan.FromMilliseconds(frameTime)));
+            frameTime += 1000.0 / 30.0;
+        }
+        
+        Storyboard.SetTarget(animation, VideoDisplay);
+        Storyboard.SetTargetProperty(animation, new PropertyPath(System.Windows.Controls.Image.SourceProperty));
+        
+        _animationStoryboard = new Storyboard();
+        _animationStoryboard.Children.Add(animation);
+        _animationStoryboard.Begin(this);
     }
 
 
-    public void SetClickThrough(bool clickThrough)
+    private void SetClickThrough(bool clickThrough)
     {
         _isClickThrough = clickThrough;
+        CloseButton.Visibility = clickThrough ? Visibility.Collapsed : Visibility.Visible;
         
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd != IntPtr.Zero)
+        if (_windowHandle != IntPtr.Zero)
         {
-            int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            if (clickThrough)
-            {
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TRANSPARENT);
-                CloseButton.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle & ~WS_EX_TRANSPARENT);
-                CloseButton.Visibility = Visibility.Visible;
-            }
+            var style = GetWindowLong(_windowHandle, GWL_EXSTYLE);
+            SetWindowLong(_windowHandle, GWL_EXSTYLE, 
+                clickThrough ? style | WS_EX_TRANSPARENT : style & ~WS_EX_TRANSPARENT);
         }
     }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        
-        // Get window handle
-        var hwnd = new WindowInteropHelper(this).Handle;
-        
-        // Add layered and no-activate extended styles
-        var extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-        SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_LAYERED | WS_EX_NOACTIVATE);
-        
-        // Enable click-through after window is initialized
+        _windowHandle = new WindowInteropHelper(this).Handle;
+        var style = GetWindowLong(_windowHandle, GWL_EXSTYLE);
+        SetWindowLong(_windowHandle, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_NOACTIVATE);
         SetClickThrough(true);
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        _frameTimer?.Stop();
+        _animationStoryboard?.Stop();
         Application.Current.Shutdown();
     }
 }
