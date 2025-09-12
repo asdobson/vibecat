@@ -6,7 +6,7 @@
         mc:Ignorable="d"
         Title="VibeCat"
         Height="400"
-        Width="400"
+        Width="533"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -19,7 +19,7 @@
         Left="100"
         Top="100">
     
-    <Grid Background="Transparent">
+    <Grid>
         <!-- Video display area -->
         <Image x:Name="VideoDisplay" 
                Stretch="Uniform"

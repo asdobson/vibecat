@@ -34,7 +34,6 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`nBuild completed successfully!" -ForegroundColor Green
 Write-Host "Output: VibeCat\bin\Release\net8.0-windows\" -ForegroundColor Cyan
-Write-Host "`nNote: FFmpeg will auto-download on first run if needed" -ForegroundColor Yellow
 
 # Ask if user wants to run
 $response = Read-Host "`nDo you want to run VibeCat now? (y/n)"
