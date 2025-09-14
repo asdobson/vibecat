@@ -80,8 +80,9 @@ VibeCat/
 - **Animation**: 330 pre-extracted PNG frames @ 30 FPS
 - **Transparency**: Chromakey removal of green screen (#1bba14)
 - **Display Size**: 920x690px (4:3 aspect ratio)
-- **Memory Usage**: ~1044MB (future optimizations TBD)
-- **No External Dependencies**: All assets included, no runtime video processing
+- **Memory Usage**: ~1GB (330 frames loaded in memory)
+- **System Tray**: Hardcodet.NotifyIcon.Wpf for tray integration
+- **No Video Dependencies**: All assets pre-extracted, no runtime processing
 
 ## License
 

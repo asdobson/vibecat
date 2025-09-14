@@ -23,6 +23,7 @@
                         <RowDefinition/>
                         <RowDefinition/>
                         <RowDefinition/>
+                        <RowDefinition/>
                     </Grid.RowDefinitions>
 
                     <!-- Double-click -->
@@ -57,6 +58,18 @@
                              Margin="0,0,10,8"/>
                     <TextBlock Grid.Row="2" Grid.Column="1"
                              Text="Drag window"
+                             Foreground="Gray"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,8"/>
+
+                    <!-- Ctrl+Alt+T -->
+                    <TextBlock Grid.Row="3" Grid.Column="0"
+                             Text="Ctrl+Alt+T:"
+                             Foreground="LightGray"
+                             FontWeight="SemiBold"
+                             Margin="0,0,10,8"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1"
+                             Text="Toggle click-through mode"
                              Foreground="Gray"
                              TextWrapping="Wrap"
                              Margin="0,0,0,8"/>

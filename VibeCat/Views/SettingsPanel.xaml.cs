@@ -10,6 +10,7 @@ public partial class SettingsPanel : UserControl
     public event EventHandler<double>? SnapDistanceChanged;
     public event EventHandler<bool>? AutoFlipEnabledChanged;
     public event EventHandler? ManualFlipRequested;
+    public event EventHandler<bool>? ClickThroughChanged;
 
     public SettingsPanel()
     {
@@ -54,5 +55,21 @@ public partial class SettingsPanel : UserControl
     private void ManualFlipButton_Click(object sender, RoutedEventArgs e)
     {
         ManualFlipRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ClickThroughCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox checkBox)
+        {
+            ClickThroughChanged?.Invoke(this, checkBox.IsChecked ?? false);
+        }
+    }
+
+    public void UpdateClickThroughState(bool isClickThrough)
+    {
+        if (ClickThroughCheckBox != null)
+        {
+            ClickThroughCheckBox.IsChecked = isClickThrough;
+        }
     }
 }

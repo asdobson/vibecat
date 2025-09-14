@@ -128,3 +128,8 @@ Desktop.ini
 # Local development files
 sync-to-windows.sh
 VibeCat_Project_Plan.md
+
+# Temporary icon development files
+VibeCat/Resources/*.svg
+VibeCat/Resources/*-original.ico
+*.py
