@@ -1,97 +1,88 @@
-# VibeCat - Phase 1 Complete 🐱
+# VibeCat 🐱
 
-A desktop overlay application that displays an animated cat synchronized to your music's BPM.
+An animated desktop cat overlay for Windows - a transparent, always-on-top companion that lives on your desktop.
 
-## Current Status: Phase 1 ✅
+## Features
 
-### Completed Features:
-- ✅ Transparent, borderless WPF window
-- ✅ Green screen (chroma key) removal 
-- ✅ Video frame extraction and playback
-- ✅ Click-through window capability
-- ✅ Always-on-top overlay
+- **Animated Cat**: Smooth 30 FPS animation using pre-rendered frames
+- **Transparent Overlay**: Click-through transparent window with chromakey background removal
+- **UI Mode Toggle**: Double-click to toggle between cat-only and UI control modes
+- **Edge Snapping**: Automatically snaps to screen edges when dragging (hold Alt to disable)
+- **Settings Panel**: Adjust window opacity and snapping behavior
+- **Hotkeys Menu**: Built-in documentation for keyboard shortcuts
+- **Resizable**: Maintain aspect ratio while resizing (UI mode)
+- **Always On Top**: Stays above all other windows
 
 ## Prerequisites
 
 - Windows 10/11
 - .NET 8 SDK
-- FFmpeg binaries (automatically downloaded by FFMpegCore)
 
 ## Building the Project
 
-1. **Install .NET 8 SDK** (if not already installed):
-   ```powershell
-   winget install Microsoft.DotNet.SDK.8
-   ```
+### Quick Build (Windows)
+.\build.ps1
 
-2. **Navigate to project directory** (in Windows Command Prompt or PowerShell):
-   ```powershell
-   cd C:\path\to\VibeCat
-   ```
+### Manual Build
+```powershell
+# Install .NET 8 SDK if needed
+winget install Microsoft.DotNet.SDK.8
 
-3. **Restore NuGet packages**:
-   ```powershell
-   dotnet restore
-   ```
+# Build the project
+.\build.ps1
 
-4. **Build the project**:
-   ```powershell
-   dotnet build
-   ```
-
-5. **Run the application**:
-   ```powershell
-   dotnet run --project VibeCat\VibeCat.csproj
-   ```
+# Run the application
+VibeCat\bin\Release\net8.0-windows\VibeCat.exe
+```
 
 ## How to Use
 
-1. **Place your video file**: 
-   - Create a `Resources` folder in `VibeCat\VibeCat\`
-   - Put your green screen cat video (MP4) in this folder
-   - Name it `cat-green.mp4`
+### Controls
+- **Double-click**: Toggle between Cat Mode and UI Mode
+- **Single-click + Drag**: Move the window
+- **Hold Alt while dragging**: Disable edge snapping temporarily
+- **UI Mode Controls**:
+  - Settings button: Open settings panel
+  - Hotkeys button: View available keyboard shortcuts
+  - Minimize/Close buttons: Standard window controls
+  - Resize grip: Resize window (maintains aspect ratio)
 
-2. **Run the app**: The cat will appear on your desktop with the green screen removed
-
-3. **Controls**:
-   - Drag the window to reposition (when not in click-through mode)
-   - Click the red X button to close
-   - The window can be made click-through via code
-
-## Testing Phase 1
-
-The application currently shows a placeholder animation (animated circle with cat emoji) to demonstrate:
-- Window transparency working
-- Chroma key algorithm functioning
-- Animation loop playing
-
-To test with your actual video:
-1. Add your `cat-green.mp4` to the Resources folder
-2. Modify `MainWindow.xaml.cs` to call `LoadVideoFile()` with your video path
+### Settings
+- **Window Opacity**: Adjust transparency of the cat animation
+- **Edge Snapping**: Toggle automatic snapping to screen edges
+- **Snap Distance**: Configure how close to edges before snapping occurs
 
 ## Project Structure
 ```
 VibeCat/
-├── VibeCat.sln
+├── VibeCat.sln                    # Solution file
+├── build.ps1                       # Build script
+├── CLAUDE.md                       # Development guidelines
 └── VibeCat/
-    ├── VibeCat.csproj
-    ├── App.xaml
-    ├── App.xaml.cs
-    ├── MainWindow.xaml
-    ├── MainWindow.xaml.cs
-    ├── Services/
-    │   └── VideoProcessor.cs
+    ├── VibeCat.csproj             # Project file
+    ├── App.xaml[.cs]              # Application entry
+    ├── MainWindow.xaml[.cs]       # Main window logic
+    ├── Controls/                  # Custom controls
+    │   ├── CatAnimationView       # Cat animation display
+    │   ├── CustomTitleBar         # Custom title bar
+    │   └── ResizeGrip            # Resize handle
+    ├── Views/                     # UI panels
+    │   ├── SettingsPanel         # Settings interface
+    │   └── HotkeysPanel          # Hotkeys documentation
     └── Resources/
-        └── (place cat-green.mp4 here)
+        └── frames/               # Animation frames
+            └── frame_0001.png    # to frame_0329.png
 ```
 
-## Known Issues / TODOs
+## Technical Details
 
-- FFmpeg binary download happens on first run (may take a moment)
-- Video loading from file not yet connected in MainWindow (using placeholder)
-- Need to add Resources folder creation to build process
+- **Framework**: WPF (.NET 8)
+- **Animation**: 330 pre-extracted PNG frames @ 30 FPS
+- **Transparency**: Chromakey removal of green screen (#1bba14)
+- **Display Size**: 920x690px (4:3 aspect ratio)
+- **Memory Usage**: ~1044MB (future optimizations TBD)
+- **No External Dependencies**: All assets included, no runtime video processing
 
-## Next: Phase 2
-- Spotify API integration for BPM detection
-- OAuth authentication flow
-- Real-time track monitoring
+## License
+
+This project is currently under development. License pending.

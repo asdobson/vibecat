@@ -46,6 +46,12 @@
                                Margin="0,32,0,0"
                                Visibility="Collapsed"/>
 
+            <!-- Hotkeys panel -->
+            <views:HotkeysPanel x:Name="HotkeysPanel"
+                              HorizontalAlignment="Left"
+                              Margin="0,32,0,0"
+                              Visibility="Collapsed"/>
+
             <!-- Resize grip -->
             <controls:ResizeGrip x:Name="ResizeGrip"
                                HorizontalAlignment="Right"

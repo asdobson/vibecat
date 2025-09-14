@@ -23,6 +23,43 @@
                       ValueChanged="OpacitySlider_ValueChanged"
                       Margin="0,0,0,15"/>
 
+                <Separator Background="#333333" Margin="0,5,0,15"/>
+
+                <TextBlock Text="Edge Snapping"
+                         Foreground="White"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,10"/>
+
+                <CheckBox x:Name="SnappingEnabledCheckBox"
+                        Content="Enable edge snapping"
+                        Foreground="Gray"
+                        IsChecked="True"
+                        Checked="SnappingEnabledCheckBox_Changed"
+                        Unchecked="SnappingEnabledCheckBox_Changed"
+                        Margin="0,0,0,10"/>
+
+                <TextBlock Text="Snap Distance:"
+                         Foreground="Gray"
+                         Margin="0,0,0,5"/>
+
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="SnapDistanceSlider"
+                          Grid.Column="0"
+                          Minimum="10" Maximum="50" Value="20"
+                          ValueChanged="SnapDistanceSlider_ValueChanged"
+                          IsEnabled="{Binding ElementName=SnappingEnabledCheckBox, Path=IsChecked}"/>
+                    <TextBlock Grid.Column="1"
+                             Text="{Binding ElementName=SnapDistanceSlider, Path=Value, StringFormat={}{0:0} px}"
+                             Foreground="Gray"
+                             Margin="10,0,0,0"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
                 <TextBlock Text="More settings coming soon..."
                          Foreground="Gray"
                          FontStyle="Italic"/>

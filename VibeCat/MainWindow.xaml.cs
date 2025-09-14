@@ -30,6 +30,11 @@ public partial class MainWindow : Window
     private DateTime _lastClickTime = DateTime.MinValue;
     private IntPtr _windowHandle;
     private bool _isUIMode = false;
+    private bool _isDragging = false;
+
+    // Snapping properties
+    public bool IsSnappingEnabled { get; set; } = true;
+    public double SnapDistance { get; set; } = 20;
 
     public MainWindow()
     {
@@ -41,6 +46,7 @@ public partial class MainWindow : Window
     private void SetupEventHandlers()
     {
         TitleBar.SettingsClicked += (s, e) => ToggleSettingsPanel();
+        TitleBar.HotkeysClicked += (s, e) => ToggleHotkeysPanel();
         TitleBar.MinimizeClicked += (s, e) => WindowState = WindowState.Minimized;
         TitleBar.CloseClicked += (s, e) =>
         {
@@ -48,6 +54,8 @@ public partial class MainWindow : Window
             Application.Current.Shutdown();
         };
         SettingsPanel.OpacityChanged += (s, opacity) => CatAnimation.SetOpacity(opacity);
+        SettingsPanel.SnappingEnabledChanged += (s, enabled) => IsSnappingEnabled = enabled;
+        SettingsPanel.SnapDistanceChanged += (s, distance) => SnapDistance = distance;
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
@@ -62,10 +70,15 @@ public partial class MainWindow : Window
         {
             try
             {
+                _isDragging = true;
                 DragMove();
             }
             catch (InvalidOperationException)
             {
+            }
+            finally
+            {
+                _isDragging = false;
             }
         }
         _lastClickTime = now;
@@ -114,11 +127,85 @@ public partial class MainWindow : Window
         SetWindowLong(_windowHandle, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_NOACTIVATE);
     }
 
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+
+        // Check if Alt key is currently pressed using Keyboard.IsKeyDown
+        var isAltPressed = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
+
+        // Only snap if dragging, snapping is enabled, and Alt is not pressed
+        if (_isDragging && IsSnappingEnabled && !isAltPressed)
+        {
+            PerformEdgeSnapping();
+        }
+    }
+
+    private void PerformEdgeSnapping()
+    {
+        var workArea = SystemParameters.WorkArea;
+        var currentLeft = Left;
+        var currentTop = Top;
+        var windowRight = Left + Width;
+        var windowBottom = Top + Height;
+
+        var newLeft = currentLeft;
+        var newTop = currentTop;
+
+        // Snap to left edge
+        if (Math.Abs(currentLeft - workArea.Left) < SnapDistance)
+        {
+            newLeft = workArea.Left;
+        }
+        // Snap to right edge
+        else if (Math.Abs(windowRight - workArea.Right) < SnapDistance)
+        {
+            newLeft = workArea.Right - Width;
+        }
+
+        // Snap to top edge
+        if (Math.Abs(currentTop - workArea.Top) < SnapDistance)
+        {
+            newTop = workArea.Top;
+        }
+        // Snap to bottom edge
+        else if (Math.Abs(windowBottom - workArea.Bottom) < SnapDistance)
+        {
+            newTop = workArea.Bottom - Height;
+        }
+
+        // Apply snapped position if changed
+        if (newLeft != currentLeft || newTop != currentTop)
+        {
+            Left = newLeft;
+            Top = newTop;
+        }
+    }
+
     private void ToggleSettingsPanel()
     {
         SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Collapsed
             ? Visibility.Visible
             : Visibility.Collapsed;
+
+        // Hide hotkeys panel when showing settings
+        if (SettingsPanel.Visibility == Visibility.Visible)
+        {
+            HotkeysPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void ToggleHotkeysPanel()
+    {
+        HotkeysPanel.Visibility = HotkeysPanel.Visibility == Visibility.Collapsed
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        // Hide settings panel when showing hotkeys
+        if (HotkeysPanel.Visibility == Visibility.Visible)
+        {
+            SettingsPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void HandleResize(DragDeltaEventArgs e)
