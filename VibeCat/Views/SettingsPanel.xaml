@@ -83,6 +83,35 @@
                       Padding="10,5"
                       Margin="0,0,0,15"/>
 
+                <Separator Background="#333333" Margin="0,5,0,15"/>
+
+                <TextBlock Text="Animation Speed"
+                         Foreground="White"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,10"/>
+
+                <TextBlock Text="BPM (Beats Per Minute):"
+                         Foreground="Gray"
+                         Margin="0,0,0,5"/>
+
+                <Grid Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="BPMSlider"
+                          Grid.Column="0"
+                          Minimum="60" Maximum="180" Value="115"
+                          ValueChanged="BPMSlider_ValueChanged"/>
+                    <TextBlock Grid.Column="1"
+                             Text="{Binding ElementName=BPMSlider, Path=Value, StringFormat={}{0:0} BPM}"
+                             Foreground="Gray"
+                             Margin="10,0,0,0"
+                             VerticalAlignment="Center"
+                             MinWidth="60"/>
+                </Grid>
+
                 <TextBlock Text="More settings coming soon..."
                          Foreground="Gray"
                          FontStyle="Italic"/>

@@ -62,6 +62,7 @@ public partial class MainWindow : Window
         SettingsPanel.SnapDistanceChanged += (s, distance) => SnapDistance = distance;
         SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => IsAutoFlipEnabled = enabled;
         SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
+        SettingsPanel.BPMChanged += (s, bpm) => CatAnimation.SetPlaybackSpeed(bpm);
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
