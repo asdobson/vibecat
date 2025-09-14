@@ -102,7 +102,7 @@
                     </Grid.ColumnDefinitions>
                     <Slider x:Name="BPMSlider"
                           Grid.Column="0"
-                          Minimum="60" Maximum="180" Value="115"
+                          Minimum="60" Maximum="180" Value="120"
                           ValueChanged="BPMSlider_ValueChanged"/>
                     <TextBlock Grid.Column="1"
                              Text="{Binding ElementName=BPMSlider, Path=Value, StringFormat={}{0:0} BPM}"

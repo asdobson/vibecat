@@ -12,7 +12,7 @@ namespace VibeCat.Controls;
 
 public partial class CatAnimationView : UserControl
 {
-    private const double BaseBPM = 115.0;  // ~21 bops in 11 seconds
+    private const double BaseBPM = 120.0;  // ~22 bops in 11 seconds
     private Storyboard? _animationStoryboard;
     private readonly List<BitmapSource> _frames = new();
 
