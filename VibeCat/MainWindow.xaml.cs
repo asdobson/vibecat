@@ -5,21 +5,28 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media.Animation;
+using Hardcodet.Wpf.TaskbarNotification;
+using System.Windows.Controls;
 
 namespace VibeCat;
 
 public partial class MainWindow : Window
 {
-    // Animation constants
     private const double AspectRatio = 4.0 / 3.0;
     private const int FadeAnimationDuration = 200;
     private const int DoubleClickThreshold = 300;
     private const double MinimumWindowWidth = 266;
 
-    // P/Invoke constants
     private const int WS_EX_LAYERED = 0x00080000;
     private const int WS_EX_NOACTIVATE = 0x08000000;
+    private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int GWL_EXSTYLE = -20;
+
+    private const int HOTKEY_ID = 9000;
+    private const uint MOD_CONTROL = 0x0002;
+    private const uint MOD_ALT = 0x0001;
+    private const uint VK_T = 0x54;
+    private const int WM_HOTKEY = 0x0312;
 
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hwnd, int index);
@@ -27,24 +34,41 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
+    [DllImport("user32.dll")]
+    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
     private DateTime _lastClickTime = DateTime.MinValue;
     private IntPtr _windowHandle;
     private bool _isUIMode = false;
     private bool _isDragging = false;
+    private bool _isClickThrough = false;
+    private TaskbarIcon? _trayIcon;
+    private MenuItem? _clickThroughMenuItem;
 
-    // Snapping properties
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
-
-    // Flipping properties
     public bool IsAutoFlipEnabled { get; set; } = true;
     public bool IsFlipped { get; set; } = false;
+
+    public bool IsClickThrough
+    {
+        get => _isClickThrough;
+        set
+        {
+            _isClickThrough = value;
+            UpdateClickThroughState();
+        }
+    }
 
     public MainWindow()
     {
         InitializeComponent();
         MouseLeftButtonDown += Window_MouseLeftButtonDown;
         SetupEventHandlers();
+        SetupSystemTray();
     }
 
     private void SetupEventHandlers()
@@ -63,6 +87,7 @@ public partial class MainWindow : Window
         SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => IsAutoFlipEnabled = enabled;
         SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
         SettingsPanel.BPMChanged += (s, bpm) => CatAnimation.SetPlaybackSpeed(bpm);
+        SettingsPanel.ClickThroughChanged += (s, enabled) => IsClickThrough = enabled;
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
@@ -97,19 +122,16 @@ public partial class MainWindow : Window
 
         if (_isUIMode)
         {
-            // Show UI overlay
             UIPanel.Visibility = Visibility.Visible;
             BackgroundOverlay.Visibility = Visibility.Visible;
             ShowInTaskbar = true;
 
-            // Fade in animation
             var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(FadeAnimationDuration));
             UIPanel.BeginAnimation(OpacityProperty, fadeIn);
             BackgroundOverlay.BeginAnimation(OpacityProperty, fadeIn);
         }
         else
         {
-            // Hide UI overlay
             ShowInTaskbar = false;
 
             var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(FadeAnimationDuration));
@@ -131,16 +153,18 @@ public partial class MainWindow : Window
         _windowHandle = new WindowInteropHelper(this).Handle;
         var style = GetWindowLong(_windowHandle, GWL_EXSTYLE);
         SetWindowLong(_windowHandle, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_NOACTIVATE);
+
+        RegisterHotKey(_windowHandle, HOTKEY_ID, MOD_CONTROL | MOD_ALT, VK_T);
+        HwndSource source = HwndSource.FromHwnd(_windowHandle);
+        source.AddHook(WndProc);
     }
 
     protected override void OnLocationChanged(EventArgs e)
     {
         base.OnLocationChanged(e);
 
-        // Check if Alt key is currently pressed using Keyboard.IsKeyDown
         var isAltPressed = Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
 
-        // Only snap if dragging, snapping is enabled, and Alt is not pressed
         if (_isDragging && IsSnappingEnabled && !isAltPressed)
         {
             PerformEdgeSnapping();
@@ -158,38 +182,32 @@ public partial class MainWindow : Window
         var snappedToLeftEdge = false;
         var snappedToRightEdge = false;
 
-        // Snap to left edge
         if (Math.Abs(currentLeft - workArea.Left) < SnapDistance)
         {
             newLeft = workArea.Left;
             snappedToLeftEdge = true;
         }
-        // Snap to right edge
         else if (Math.Abs(currentLeft + Width - workArea.Right) < SnapDistance)
         {
             newLeft = workArea.Right - Width;
             snappedToRightEdge = true;
         }
 
-        // Snap to top edge
         if (Math.Abs(currentTop - workArea.Top) < SnapDistance)
         {
             newTop = workArea.Top;
         }
-        // Snap to bottom edge
         else if (Math.Abs(currentTop + Height - workArea.Bottom) < SnapDistance)
         {
             newTop = workArea.Bottom - Height;
         }
 
-        // Apply snapped position if changed
         if (newLeft != currentLeft || newTop != currentTop)
         {
             Left = newLeft;
             Top = newTop;
         }
 
-        // Handle auto-flipping when snapping to left/right edges
         if (IsAutoFlipEnabled && (snappedToLeftEdge || snappedToRightEdge))
         {
             SetFlipped(snappedToRightEdge);
@@ -221,12 +239,104 @@ public partial class MainWindow : Window
 
     private void HandleResize(DragDeltaEventArgs e)
     {
-        // Use horizontal drag only (common pattern for aspect-locked resize)
-        // This is how video players, image viewers, etc. handle aspect ratio resize
         var newWidth = Math.Max(MinimumWindowWidth, Width + e.HorizontalChange);
-
-        // Set width and auto-calculate height to maintain aspect ratio
         Width = newWidth;
         Height = newWidth / AspectRatio;
+    }
+
+    private void SetupSystemTray()
+    {
+        _trayIcon = new TaskbarIcon
+        {
+            ToolTipText = "VibeCat",
+            IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(_isClickThrough
+                ? "pack://application:,,,/Resources/tray-icon-outline.ico"
+                : "pack://application:,,,/Resources/tray-icon.ico"))
+        };
+
+        var contextMenu = new ContextMenu();
+
+        _clickThroughMenuItem = new MenuItem
+        {
+            Header = "Click-Through Mode",
+            IsCheckable = true,
+            IsChecked = _isClickThrough
+        };
+        _clickThroughMenuItem.Click += (s, e) => IsClickThrough = _clickThroughMenuItem.IsChecked;
+
+        contextMenu.Items.Add(_clickThroughMenuItem);
+        contextMenu.Items.Add(new Separator());
+
+        var exitMenuItem = new MenuItem { Header = "Exit" };
+        exitMenuItem.Click += (s, e) =>
+        {
+            CatAnimation.StopAnimation();
+            Application.Current.Shutdown();
+        };
+        contextMenu.Items.Add(exitMenuItem);
+
+        _trayIcon.ContextMenu = contextMenu;
+        _trayIcon.TrayLeftMouseDown += (s, e) => IsClickThrough = !IsClickThrough;
+    }
+
+    private void UpdateClickThroughState()
+    {
+        if (_windowHandle == IntPtr.Zero) return;
+
+        var style = GetWindowLong(_windowHandle, GWL_EXSTYLE);
+
+        if (_isClickThrough)
+        {
+            SetWindowLong(_windowHandle, GWL_EXSTYLE, style | WS_EX_TRANSPARENT);
+
+            if (_isUIMode)
+            {
+                _isUIMode = false;
+                UIPanel.Visibility = Visibility.Collapsed;
+                BackgroundOverlay.Visibility = Visibility.Collapsed;
+                ShowInTaskbar = false;
+            }
+        }
+        else
+        {
+            SetWindowLong(_windowHandle, GWL_EXSTYLE, style & ~WS_EX_TRANSPARENT);
+        }
+
+        if (_clickThroughMenuItem != null)
+        {
+            _clickThroughMenuItem.IsChecked = _isClickThrough;
+        }
+
+        if (_trayIcon != null)
+        {
+            _trayIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(_isClickThrough
+                ? "pack://application:,,,/Resources/tray-icon-outline.ico"
+                : "pack://application:,,,/Resources/tray-icon.ico"));
+            _trayIcon.ToolTipText = $"VibeCat - Click-Through: {(_isClickThrough ? "ON" : "OFF")}";
+        }
+
+        SettingsPanel?.UpdateClickThroughState(_isClickThrough);
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+        {
+            IsClickThrough = !IsClickThrough;
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (_windowHandle != IntPtr.Zero)
+        {
+            UnregisterHotKey(_windowHandle, HOTKEY_ID);
+        }
+
+        _trayIcon?.Dispose();
+
+        base.OnClosed(e);
     }
 }

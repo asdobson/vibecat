@@ -11,6 +11,7 @@ public partial class SettingsPanel : UserControl
     public event EventHandler<bool>? AutoFlipEnabledChanged;
     public event EventHandler? ManualFlipRequested;
     public event EventHandler<double>? BPMChanged;
+    public event EventHandler<bool>? ClickThroughChanged;
 
     public SettingsPanel()
     {
@@ -71,6 +72,22 @@ public partial class SettingsPanel : UserControl
             {
                 BPMSlider.Value = Math.Max(60, Math.Min(180, value));
             }
+        }
+    }
+
+    private void ClickThroughCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox checkBox)
+        {
+            ClickThroughChanged?.Invoke(this, checkBox.IsChecked ?? false);
+        }
+    }
+
+    public void UpdateClickThroughState(bool isClickThrough)
+    {
+        if (ClickThroughCheckBox != null)
+        {
+            ClickThroughCheckBox.IsChecked = isClickThrough;
         }
     }
 }

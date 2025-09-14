@@ -112,6 +112,27 @@
                              MinWidth="60"/>
                 </Grid>
 
+                <Separator Background="#333333" Margin="0,5,0,15"/>
+
+                <TextBlock Text="Click-Through Mode"
+                         Foreground="White"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,10"/>
+
+                <CheckBox x:Name="ClickThroughCheckBox"
+                        Content="Enable click-through mode"
+                        Foreground="Gray"
+                        IsChecked="False"
+                        Checked="ClickThroughCheckBox_Changed"
+                        Unchecked="ClickThroughCheckBox_Changed"
+                        Margin="0,0,0,10"/>
+
+                <TextBlock Text="Hotkey: Ctrl+Alt+T"
+                         Foreground="Gray"
+                         FontSize="12"
+                         Margin="20,0,0,15"/>
+
                 <TextBlock Text="More settings coming soon..."
                          Foreground="Gray"
                          FontStyle="Italic"/>
