@@ -1,0 +1,73 @@
+<UserControl x:Class="VibeCat.Views.HotkeysPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             Width="250">
+    <Border Background="#EE1A1A1A">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <TextBlock Text="Hotkeys"
+                         Foreground="White"
+                         FontSize="18"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,20"/>
+
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Double-click -->
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                             Text="Double-click:"
+                             Foreground="LightGray"
+                             FontWeight="SemiBold"
+                             Margin="0,0,10,8"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                             Text="Toggle UI mode"
+                             Foreground="Gray"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,8"/>
+
+                    <!-- Hold Alt -->
+                    <TextBlock Grid.Row="1" Grid.Column="0"
+                             Text="Hold Alt:"
+                             Foreground="LightGray"
+                             FontWeight="SemiBold"
+                             Margin="0,0,10,8"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                             Text="Disable edge snapping while dragging"
+                             Foreground="Gray"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,8"/>
+
+                    <!-- Single-click -->
+                    <TextBlock Grid.Row="2" Grid.Column="0"
+                             Text="Single-click:"
+                             Foreground="LightGray"
+                             FontWeight="SemiBold"
+                             Margin="0,0,10,8"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1"
+                             Text="Drag window"
+                             Foreground="Gray"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,8"/>
+                </Grid>
+
+                <Separator Background="#333333" Margin="0,10,0,15"/>
+
+                <TextBlock Text="More hotkeys coming soon..."
+                         Foreground="Gray"
+                         FontStyle="Italic"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

@@ -7,12 +7,18 @@ namespace VibeCat.Controls;
 public partial class CustomTitleBar : UserControl
 {
     public event EventHandler? SettingsClicked;
+    public event EventHandler? HotkeysClicked;
     public event EventHandler? MinimizeClicked;
     public event EventHandler? CloseClicked;
 
     public CustomTitleBar()
     {
         InitializeComponent();
+    }
+
+    private void HotkeysButton_Click(object sender, RoutedEventArgs e)
+    {
+        HotkeysClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)

@@ -43,6 +43,14 @@
 
             <StackPanel Orientation="Horizontal"
                       HorizontalAlignment="Right">
+                <Button x:Name="HotkeysButton"
+                      Style="{StaticResource TitleBarButtonStyle}"
+                      Content="&#xE765;"
+                      FontFamily="Segoe MDL2 Assets"
+                      FontSize="16"
+                      Click="HotkeysButton_Click"
+                      ToolTip="Hotkeys"/>
+
                 <Button x:Name="SettingsButton"
                       Style="{StaticResource TitleBarButtonStyle}"
                       Content="&#xE713;"
