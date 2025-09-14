@@ -8,7 +8,9 @@ An animated desktop cat overlay for Windows - a transparent, always-on-top compa
 - **Transparent Overlay**: Click-through transparent window with chromakey background removal
 - **UI Mode Toggle**: Double-click to toggle between cat-only and UI control modes
 - **Edge Snapping**: Automatically snaps to screen edges when dragging (hold Alt to disable)
-- **Settings Panel**: Adjust window opacity and snapping behavior
+- **Horizontal Flipping**: Auto-flip when snapping to right edge, or manual control
+- **BPM Speed Control**: Adjust animation speed from 60-180 BPM
+- **Settings Panel**: Adjust window opacity, snapping behavior, and animation speed
 - **Hotkeys Menu**: Built-in documentation for keyboard shortcuts
 - **Resizable**: Maintain aspect ratio while resizing (UI mode)
 - **Always On Top**: Stays above all other windows
@@ -51,6 +53,8 @@ VibeCat\bin\Release\net8.0-windows\VibeCat.exe
 - **Window Opacity**: Adjust transparency of the cat animation
 - **Edge Snapping**: Toggle automatic snapping to screen edges
 - **Snap Distance**: Configure how close to edges before snapping occurs
+- **Horizontal Flipping**: Auto-flip when snapping to right edge, or manual flip
+- **Animation Speed**: Adjust BPM from 60-180 (default: 115 BPM)
 
 ## Project Structure
 ```

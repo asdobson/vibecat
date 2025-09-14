@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -13,73 +12,52 @@ namespace VibeCat.Controls;
 
 public partial class CatAnimationView : UserControl
 {
-    private const int FrameRate = 30;
+    private const double BaseBPM = 115.0;  // ~21 bops in 11 seconds
     private Storyboard? _animationStoryboard;
     private readonly List<BitmapSource> _frames = new();
 
     public CatAnimationView()
     {
         InitializeComponent();
-        _ = LoadCatVideoAsync();
+        LoadCatVideo();
     }
 
-    public void SetOpacity(double opacity)
+    public void SetOpacity(double opacity) => VideoDisplay.Opacity = opacity;
+
+    public void SetFlipped(bool flipped) =>
+        VideoDisplay.RenderTransform = flipped ? new ScaleTransform(-1, 1) : new ScaleTransform(1, 1);
+
+    public void StopAnimation() => _animationStoryboard?.Stop();
+
+    public void SetPlaybackSpeed(double bpm)
     {
-        VideoDisplay.Opacity = opacity;
+        if (_animationStoryboard == null) return;
+
+        _animationStoryboard.Pause(this);
+        _animationStoryboard.SetSpeedRatio(this, bpm / BaseBPM);
+        _animationStoryboard.Resume(this);
     }
 
-    public void SetFlipped(bool flipped)
-    {
-        if (VideoDisplay != null)
-        {
-            VideoDisplay.RenderTransform = flipped
-                ? new ScaleTransform(-1, 1)
-                : new ScaleTransform(1, 1);
-        }
-    }
-
-    public void StopAnimation()
-    {
-        _animationStoryboard?.Stop();
-    }
-
-    private async Task LoadCatVideoAsync()
+    private void LoadCatVideo()
     {
         var framesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "frames");
-        var frameFiles = await Task.Run(() =>
-            Directory.GetFiles(framesPath, "*.png").OrderBy(f => f).ToList());
-
-        foreach (var frameFile in frameFiles)
+        foreach (var file in Directory.GetFiles(framesPath, "*.png").OrderBy(f => f))
         {
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.UriSource = new Uri(frameFile, UriKind.Absolute);
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.EndInit();
+            var bitmap = new BitmapImage(new Uri(file));
             bitmap.Freeze();
             _frames.Add(bitmap);
         }
 
-        if (_frames.Count > 0)
-            StartVideoPlayback();
-    }
+        if (_frames.Count == 0) return;
 
-    private void StartVideoPlayback()
-    {
         var animation = new ObjectAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-
-        double frameTime = 0;
-        foreach (var frame in _frames)
-        {
-            animation.KeyFrames.Add(new DiscreteObjectKeyFrame(frame, TimeSpan.FromMilliseconds(frameTime)));
-            frameTime += 1000.0 / FrameRate;
-        }
+        for (int i = 0; i < _frames.Count; i++)
+            animation.KeyFrames.Add(new DiscreteObjectKeyFrame(_frames[i], TimeSpan.FromMilliseconds(i * 33.33)));
 
         Storyboard.SetTarget(animation, VideoDisplay);
         Storyboard.SetTargetProperty(animation, new PropertyPath(Image.SourceProperty));
 
-        _animationStoryboard = new Storyboard();
-        _animationStoryboard.Children.Add(animation);
-        _animationStoryboard.Begin(this);
+        (_animationStoryboard = new Storyboard()).Children.Add(animation);
+        _animationStoryboard.Begin(this, true);
     }
 }
