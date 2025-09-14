@@ -7,6 +7,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media.Animation;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Controls;
+using VibeCat.BPMDetection;
 
 namespace VibeCat;
 
@@ -47,6 +48,8 @@ public partial class MainWindow : Window
     private bool _isClickThrough = false;
     private TaskbarIcon? _trayIcon;
     private MenuItem? _clickThroughMenuItem;
+    private BPMDetectionService? _bpmService;
+    private bool _isBPMDetectionEnabled = false;
 
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
@@ -69,6 +72,7 @@ public partial class MainWindow : Window
         MouseLeftButtonDown += Window_MouseLeftButtonDown;
         SetupEventHandlers();
         SetupSystemTray();
+        SetupBPMDetection();
     }
 
     private void SetupEventHandlers()
@@ -237,6 +241,30 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SetupBPMDetection()
+    {
+        _bpmService = new BPMDetectionService();
+        BPMPanel.Initialize(_bpmService);
+    }
+
+    public void ToggleBPMDetection(bool enable)
+    {
+        _isBPMDetectionEnabled = enable;
+        if (enable)
+        {
+            _bpmService?.Start();
+            if (_isUIMode)
+            {
+                BPMPanel.Visibility = Visibility.Visible;
+            }
+        }
+        else
+        {
+            _bpmService?.Stop();
+            BPMPanel.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private void HandleResize(DragDeltaEventArgs e)
     {
         var newWidth = Math.Max(MinimumWindowWidth, Width + e.HorizontalChange);
@@ -335,6 +363,9 @@ public partial class MainWindow : Window
             UnregisterHotKey(_windowHandle, HOTKEY_ID);
         }
 
+        _bpmService?.Stop();
+        _bpmService?.Dispose();
+        BPMPanel?.Cleanup();
         _trayIcon?.Dispose();
 
         base.OnClosed(e);

@@ -90,4 +90,11 @@ public partial class SettingsPanel : UserControl
             ClickThroughCheckBox.IsChecked = isClickThrough;
         }
     }
+
+    private void BPMDetectionCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        bool isEnabled = BPMDetectionCheckBox?.IsChecked ?? false;
+        var mainWindow = Application.Current.MainWindow as MainWindow;
+        mainWindow?.ToggleBPMDetection(isEnabled);
+    }
 }

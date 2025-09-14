@@ -133,6 +133,27 @@
                          FontSize="12"
                          Margin="20,0,0,15"/>
 
+                <Separator Margin="0,10"/>
+
+                <!-- BPM Detection Section -->
+                <TextBlock Text="BPM Detection"
+                         Foreground="White"
+                         FontWeight="Bold"
+                         Margin="0,10,0,5"/>
+
+                <CheckBox x:Name="BPMDetectionCheckBox"
+                        Content="Enable BPM Detection"
+                        Foreground="Gray"
+                        IsChecked="False"
+                        Checked="BPMDetectionCheckBox_Changed"
+                        Unchecked="BPMDetectionCheckBox_Changed"
+                        Margin="0,0,0,10"/>
+
+                <TextBlock Text="Detects BPM from system audio"
+                         Foreground="Gray"
+                         FontSize="11"
+                         Margin="20,0,0,10"/>
+
                 <TextBlock Text="More settings coming soon..."
                          Foreground="Gray"
                          FontStyle="Italic"/>
