@@ -6,5 +6,6 @@
              mc:Ignorable="d">
     <Image x:Name="VideoDisplay"
            Stretch="Uniform"
-           RenderOptions.BitmapScalingMode="HighQuality"/>
+           RenderOptions.BitmapScalingMode="HighQuality"
+           RenderTransformOrigin="0.5,0.5"/>
 </UserControl>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 
@@ -25,6 +26,16 @@ public partial class CatAnimationView : UserControl
     public void SetOpacity(double opacity)
     {
         VideoDisplay.Opacity = opacity;
+    }
+
+    public void SetFlipped(bool flipped)
+    {
+        if (VideoDisplay != null)
+        {
+            VideoDisplay.RenderTransform = flipped
+                ? new ScaleTransform(-1, 1)
+                : new ScaleTransform(1, 1);
+        }
     }
 
     public void StopAnimation()

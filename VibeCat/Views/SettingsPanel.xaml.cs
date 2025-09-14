@@ -1,4 +1,3 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -9,6 +8,8 @@ public partial class SettingsPanel : UserControl
     public event EventHandler<double>? OpacityChanged;
     public event EventHandler<bool>? SnappingEnabledChanged;
     public event EventHandler<double>? SnapDistanceChanged;
+    public event EventHandler<bool>? AutoFlipEnabledChanged;
+    public event EventHandler? ManualFlipRequested;
 
     public SettingsPanel()
     {
@@ -33,5 +34,25 @@ public partial class SettingsPanel : UserControl
     private void SnapDistanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         SnapDistanceChanged?.Invoke(this, e.NewValue);
+    }
+
+    private void AutoFlipEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox checkBox)
+        {
+            var isEnabled = checkBox.IsChecked ?? true;
+            AutoFlipEnabledChanged?.Invoke(this, isEnabled);
+
+            // Enable manual flip button only when auto-flip is disabled
+            if (ManualFlipButton != null)
+            {
+                ManualFlipButton.IsEnabled = !isEnabled;
+            }
+        }
+    }
+
+    private void ManualFlipButton_Click(object sender, RoutedEventArgs e)
+    {
+        ManualFlipRequested?.Invoke(this, EventArgs.Empty);
     }
 }

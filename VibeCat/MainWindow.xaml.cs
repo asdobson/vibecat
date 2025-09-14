@@ -36,6 +36,10 @@ public partial class MainWindow : Window
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
 
+    // Flipping properties
+    public bool IsAutoFlipEnabled { get; set; } = true;
+    public bool IsFlipped { get; set; } = false;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -45,8 +49,8 @@ public partial class MainWindow : Window
 
     private void SetupEventHandlers()
     {
-        TitleBar.SettingsClicked += (s, e) => ToggleSettingsPanel();
-        TitleBar.HotkeysClicked += (s, e) => ToggleHotkeysPanel();
+        TitleBar.SettingsClicked += (s, e) => TogglePanel(SettingsPanel, HotkeysPanel);
+        TitleBar.HotkeysClicked += (s, e) => TogglePanel(HotkeysPanel, SettingsPanel);
         TitleBar.MinimizeClicked += (s, e) => WindowState = WindowState.Minimized;
         TitleBar.CloseClicked += (s, e) =>
         {
@@ -56,6 +60,8 @@ public partial class MainWindow : Window
         SettingsPanel.OpacityChanged += (s, opacity) => CatAnimation.SetOpacity(opacity);
         SettingsPanel.SnappingEnabledChanged += (s, enabled) => IsSnappingEnabled = enabled;
         SettingsPanel.SnapDistanceChanged += (s, distance) => SnapDistance = distance;
+        SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => IsAutoFlipEnabled = enabled;
+        SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
@@ -103,6 +109,8 @@ public partial class MainWindow : Window
         else
         {
             // Hide UI overlay
+            ShowInTaskbar = false;
+
             var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(FadeAnimationDuration));
             fadeOut.Completed += (s, e) =>
             {
@@ -111,9 +119,6 @@ public partial class MainWindow : Window
             };
             UIPanel.BeginAnimation(OpacityProperty, fadeOut);
             BackgroundOverlay.BeginAnimation(OpacityProperty, fadeOut);
-
-            ShowInTaskbar = false;
-            ResizeMode = ResizeMode.NoResize;
         }
     }
 
@@ -146,21 +151,23 @@ public partial class MainWindow : Window
         var workArea = SystemParameters.WorkArea;
         var currentLeft = Left;
         var currentTop = Top;
-        var windowRight = Left + Width;
-        var windowBottom = Top + Height;
 
         var newLeft = currentLeft;
         var newTop = currentTop;
+        var snappedToLeftEdge = false;
+        var snappedToRightEdge = false;
 
         // Snap to left edge
         if (Math.Abs(currentLeft - workArea.Left) < SnapDistance)
         {
             newLeft = workArea.Left;
+            snappedToLeftEdge = true;
         }
         // Snap to right edge
-        else if (Math.Abs(windowRight - workArea.Right) < SnapDistance)
+        else if (Math.Abs(currentLeft + Width - workArea.Right) < SnapDistance)
         {
             newLeft = workArea.Right - Width;
+            snappedToRightEdge = true;
         }
 
         // Snap to top edge
@@ -169,7 +176,7 @@ public partial class MainWindow : Window
             newTop = workArea.Top;
         }
         // Snap to bottom edge
-        else if (Math.Abs(windowBottom - workArea.Bottom) < SnapDistance)
+        else if (Math.Abs(currentTop + Height - workArea.Bottom) < SnapDistance)
         {
             newTop = workArea.Bottom - Height;
         }
@@ -180,31 +187,34 @@ public partial class MainWindow : Window
             Left = newLeft;
             Top = newTop;
         }
-    }
 
-    private void ToggleSettingsPanel()
-    {
-        SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Collapsed
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        // Hide hotkeys panel when showing settings
-        if (SettingsPanel.Visibility == Visibility.Visible)
+        // Handle auto-flipping when snapping to left/right edges
+        if (IsAutoFlipEnabled && (snappedToLeftEdge || snappedToRightEdge))
         {
-            HotkeysPanel.Visibility = Visibility.Collapsed;
+            SetFlipped(snappedToRightEdge);
         }
     }
 
-    private void ToggleHotkeysPanel()
+    private void SetFlipped(bool flipped)
     {
-        HotkeysPanel.Visibility = HotkeysPanel.Visibility == Visibility.Collapsed
+        IsFlipped = flipped;
+        CatAnimation.SetFlipped(flipped);
+    }
+
+    public void ToggleFlip()
+    {
+        SetFlipped(!IsFlipped);
+    }
+
+    private void TogglePanel(FrameworkElement panelToToggle, FrameworkElement panelToHide)
+    {
+        panelToToggle.Visibility = panelToToggle.Visibility == Visibility.Collapsed
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        // Hide settings panel when showing hotkeys
-        if (HotkeysPanel.Visibility == Visibility.Visible)
+        if (panelToToggle.Visibility == Visibility.Visible)
         {
-            SettingsPanel.Visibility = Visibility.Collapsed;
+            panelToHide.Visibility = Visibility.Collapsed;
         }
     }
 
