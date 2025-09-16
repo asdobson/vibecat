@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -7,6 +6,8 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media.Animation;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Controls;
+using VibeCat.Services;
+using SpotifyAPI.Web;
 
 namespace VibeCat;
 
@@ -47,6 +48,8 @@ public partial class MainWindow : Window
     private bool _isClickThrough = false;
     private TaskbarIcon? _trayIcon;
     private MenuItem? _clickThroughMenuItem;
+    private SpotifyService _spotifyService;
+    private bool _spotifySyncEnabled = false;
 
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
@@ -67,8 +70,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         MouseLeftButtonDown += Window_MouseLeftButtonDown;
+        _spotifyService = new SpotifyService();
         SetupEventHandlers();
         SetupSystemTray();
+        SetupSpotifyService();
     }
 
     private void SetupEventHandlers()
@@ -86,8 +91,11 @@ public partial class MainWindow : Window
         SettingsPanel.SnapDistanceChanged += (s, distance) => SnapDistance = distance;
         SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => IsAutoFlipEnabled = enabled;
         SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
-        SettingsPanel.BPMChanged += (s, bpm) => CatAnimation.SetPlaybackSpeed(bpm);
+        SettingsPanel.BPMChanged += (s, bpm) => { if (!_spotifySyncEnabled) CatAnimation.SetPlaybackSpeed(bpm); };
         SettingsPanel.ClickThroughChanged += (s, enabled) => IsClickThrough = enabled;
+        SettingsPanel.SpotifyConnectRequested += async (s, e) => await ConnectSpotifyAsync();
+        SettingsPanel.SpotifyDisconnectRequested += (s, e) => DisconnectSpotify();
+        SettingsPanel.SpotifySyncEnabledChanged += (s, enabled) => SetSpotifySyncEnabled(enabled);
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
@@ -336,7 +344,43 @@ public partial class MainWindow : Window
         }
 
         _trayIcon?.Dispose();
+        _spotifyService?.Disconnect();
 
         base.OnClosed(e);
+    }
+
+    private void SetupSpotifyService()
+    {
+        SettingsPanel.SetSpotifyService(_spotifyService);
+        _spotifyService.CurrentTrackChanged += async (_, context) =>
+        {
+            try
+            {
+                if (!_spotifySyncEnabled || context?.Item is not FullTrack track) return;
+                var features = await _spotifyService.GetAudioFeaturesAsync(track.Id);
+                if (features?.Tempo != null && features.Tempo > 0)
+                    await Dispatcher.InvokeAsync(() => CatAnimation.SetPlaybackSpeed(features.Tempo));
+            }
+            catch { }
+        };
+    }
+
+    private async Task ConnectSpotifyAsync()
+    {
+        if (!await _spotifyService.AuthenticateAsync())
+            MessageBox.Show("Failed to connect to Spotify. Please try again.",
+                          "Spotify Connection Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    private void DisconnectSpotify()
+    {
+        _spotifyService.Disconnect();
+        _spotifySyncEnabled = false;
+    }
+
+    private void SetSpotifySyncEnabled(bool enabled)
+    {
+        _spotifySyncEnabled = enabled;
+        if (!enabled) CatAnimation.SetPlaybackSpeed(SettingsPanel.BPM);
     }
 }

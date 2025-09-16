@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -33,8 +30,9 @@ public partial class CatAnimationView : UserControl
     {
         if (_animationStoryboard == null) return;
 
+        var clampedBpm = Math.Max(60, Math.Min(180, bpm));
         _animationStoryboard.Pause(this);
-        _animationStoryboard.SetSpeedRatio(this, bpm / BaseBPM);
+        _animationStoryboard.SetSpeedRatio(this, clampedBpm / BaseBPM);
         _animationStoryboard.Resume(this);
     }
 
