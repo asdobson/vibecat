@@ -133,6 +133,59 @@
                          FontSize="12"
                          Margin="20,0,0,15"/>
 
+                <Separator Background="#333333" Margin="0,5,0,15"/>
+
+                <TextBlock Text="Spotify Integration"
+                         Foreground="White"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,10"/>
+
+                <Button x:Name="SpotifyConnectButton"
+                      Content="Connect to Spotify"
+                      Click="SpotifyConnectButton_Click"
+                      Padding="10,5"
+                      Margin="0,0,0,10"/>
+
+                <TextBlock x:Name="SpotifyStatusText"
+                         Text="Not connected"
+                         Foreground="Gray"
+                         FontSize="12"
+                         Margin="0,0,0,10"
+                         Visibility="Collapsed"/>
+
+                <Border x:Name="SpotifyTrackInfo"
+                       Background="#33000000"
+                       CornerRadius="4"
+                       Padding="10"
+                       Margin="0,0,0,10"
+                       Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock x:Name="SpotifyTrackName"
+                                 Foreground="White"
+                                 FontSize="12"
+                                 FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="SpotifyArtistName"
+                                 Foreground="Gray"
+                                 FontSize="11"
+                                 TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="SpotifyBPMText"
+                                 Foreground="Gray"
+                                 FontSize="11"
+                                 Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <CheckBox x:Name="SpotifySyncEnabledCheckBox"
+                        Content="Sync animation to Spotify BPM"
+                        Foreground="Gray"
+                        IsChecked="False"
+                        IsEnabled="False"
+                        Checked="SpotifySyncEnabledCheckBox_Changed"
+                        Unchecked="SpotifySyncEnabledCheckBox_Changed"
+                        Margin="0,0,0,15"/>
+
                 <TextBlock Text="More settings coming soon..."
                          Foreground="Gray"
                          FontStyle="Italic"/>
