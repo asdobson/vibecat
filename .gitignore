@@ -133,3 +133,7 @@ VibeCat_Project_Plan.md
 VibeCat/Resources/*.svg
 VibeCat/Resources/*-original.ico
 *.py
+
+# Published binaries
+/publish/
+*.exe

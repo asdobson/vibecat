@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -55,10 +56,22 @@ public partial class CatAnimationView : UserControl
 
     private void LoadCatVideo()
     {
-        var framesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "frames");
-        foreach (var file in Directory.GetFiles(framesPath, "*.png").OrderBy(f => f))
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceNames = assembly.GetManifestResourceNames()
+            .Where(name => name.Contains("frame_") && name.EndsWith(".png"))
+            .OrderBy(name => name)
+            .ToList();
+
+        foreach (var resourceName in resourceNames)
         {
-            var bitmap = new BitmapImage(new Uri(file));
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null) continue;
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.StreamSource = stream;
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.EndInit();
             bitmap.Freeze();
             _frames.Add(bitmap);
         }
