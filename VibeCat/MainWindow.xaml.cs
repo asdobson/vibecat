@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private TaskbarIcon? _trayIcon;
     private MenuItem? _clickThroughMenuItem;
     private SpotifyService _spotifyService;
+    private IBpmProvider _bpmProvider;
     private bool _spotifySyncEnabled = false;
 
     public bool IsSnappingEnabled { get; set; } = true;
@@ -69,8 +70,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
         MouseLeftButtonDown += Window_MouseLeftButtonDown;
         _spotifyService = new SpotifyService();
+        _bpmProvider = new SongBpmProvider();
         SetupEventHandlers();
         SetupSystemTray();
         SetupSpotifyService();
@@ -108,13 +111,10 @@ public partial class MainWindow : Window
         }
         else
         {
+            _isDragging = true;
             try
             {
-                _isDragging = true;
                 DragMove();
-            }
-            catch (InvalidOperationException)
-            {
             }
             finally
             {
@@ -354,14 +354,19 @@ public partial class MainWindow : Window
         SettingsPanel.SetSpotifyService(_spotifyService);
         _spotifyService.CurrentTrackChanged += async (_, context) =>
         {
-            try
-            {
-                if (!_spotifySyncEnabled || context?.Item is not FullTrack track) return;
-                var features = await _spotifyService.GetAudioFeaturesAsync(track.Id);
-                if (features?.Tempo != null && features.Tempo > 0)
-                    await Dispatcher.InvokeAsync(() => CatAnimation.SetPlaybackSpeed(features.Tempo));
-            }
-            catch { }
+            if (!_spotifySyncEnabled)
+                return;
+
+            if (context?.Item is not FullTrack track)
+                return;
+
+            var artistName = track.Artists?.FirstOrDefault()?.Name ?? "Unknown";
+            var songName = track.Name ?? "Unknown";
+
+            var bpm = await _bpmProvider.GetBpmAsync(artistName, songName, track.Id);
+
+            if (bpm != null && bpm.Value > 0)
+                await Dispatcher.InvokeAsync(() => CatAnimation.SetPlaybackSpeed(bpm.Value));
         };
     }
 
