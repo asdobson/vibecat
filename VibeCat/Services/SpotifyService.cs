@@ -148,9 +148,14 @@ public class SpotifyService
     {
         try
         {
-            if (_spotify == null || string.IsNullOrEmpty(trackId)) return null;
+            if (_spotify == null || string.IsNullOrEmpty(trackId))
+                return null;
+
             return await _spotify.Tracks.GetAudioFeatures(trackId).ConfigureAwait(false);
         }
-        catch { return null; }
+        catch
+        {
+            return null;
+        }
     }
 }

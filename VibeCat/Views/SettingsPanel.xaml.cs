@@ -19,10 +19,12 @@ public partial class SettingsPanel : UserControl
     public event EventHandler<bool>? SpotifySyncEnabledChanged;
 
     private SpotifyService? _spotifyService;
+    private IBpmProvider? _bpmProvider;
 
     public SettingsPanel()
     {
         InitializeComponent();
+        _bpmProvider = new SongBpmProvider();
     }
 
     private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
@@ -126,19 +128,16 @@ public partial class SettingsPanel : UserControl
                 ? string.Join(", ", track.Artists.Where(a => a?.Name != null).Select(a => a.Name))
                 : "Unknown Artist";
 
-        if (SpotifyBPMText != null && _spotifyService != null)
+        if (SpotifyBPMText != null && _bpmProvider != null)
         {
-            try
-            {
-                var features = await _spotifyService.GetAudioFeaturesAsync(track.Id);
-                SpotifyBPMText.Text = features?.Tempo != null && features.Tempo > 0
-                    ? $"Tempo: {features.Tempo:F1} BPM"
-                    : "Tempo: Unknown";
-            }
-            catch
-            {
-                SpotifyBPMText.Text = "Tempo: Unknown";
-            }
+            var artistName = track.Artists?.FirstOrDefault()?.Name ?? "Unknown";
+            var songName = track.Name ?? "Unknown";
+
+            var bpm = await _bpmProvider.GetBpmAsync(artistName, songName, track.Id);
+
+            SpotifyBPMText.Text = bpm.HasValue && bpm.Value > 0
+                ? $"Tempo: {bpm.Value:F1} BPM"
+                : "Tempo: Unknown";
         }
     }
 }
