@@ -21,6 +21,7 @@ public class SpotifyService
 
     public bool IsConnected => _spotify != null;
     public CurrentlyPlaying? CurrentTrack { get; private set; }
+    public bool? IsPlaying { get; private set; }
 
     public async Task<bool> AuthenticateAsync()
     {
@@ -114,12 +115,13 @@ public class SpotifyService
                 try
                 {
                     var current = await _spotify.Player.GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest());
-                    if (HasTrackChanged(current))
+                    if (HasTrackChanged(current) || HasPlaybackStateChanged(current))
                     {
                         CurrentTrack = current;
+                        IsPlaying = current?.IsPlaying;
                         CurrentTrackChanged?.Invoke(this, current);
                     }
-                    await Task.Delay(1500, token);
+                    await Task.Delay(500, token);
                 }
                 catch { await Task.Delay(3000, token); }
             }
@@ -133,12 +135,16 @@ public class SpotifyService
         return currentId != previousId;
     }
 
+    private bool HasPlaybackStateChanged(CurrentlyPlaying? current) =>
+        current?.IsPlaying != IsPlaying;
+
     public void Disconnect()
     {
         _pollingCancellationTokenSource?.Cancel();
         _spotify = null;
         _authenticator = null;
         CurrentTrack = null;
+        IsPlaying = null;
         ConnectionStatusChanged?.Invoke(this, false);
     }
 

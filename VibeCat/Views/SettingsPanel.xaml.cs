@@ -18,6 +18,8 @@ public partial class SettingsPanel : UserControl
     public event EventHandler? SpotifyConnectRequested;
     public event EventHandler? SpotifyDisconnectRequested;
     public event EventHandler<bool>? SpotifySyncEnabledChanged;
+    public event EventHandler<bool>? FadeEnabledChanged;
+    public event EventHandler<double>? FadeDurationChanged;
 
     private SpotifyService? _spotifyService;
     private IBpmProvider? _bpmProvider;
@@ -40,6 +42,8 @@ public partial class SettingsPanel : UserControl
         if (BPMSlider != null) BPMSlider.Value = settings.BPM;
         if (ClickThroughCheckBox != null) ClickThroughCheckBox.IsChecked = settings.IsClickThrough;
         if (SpotifySyncEnabledCheckBox != null) SpotifySyncEnabledCheckBox.IsChecked = settings.SpotifySyncEnabled;
+        if (FadeEnabledCheckBox != null) FadeEnabledCheckBox.IsChecked = settings.EnableFadeOnPlaybackChange;
+        if (FadeDurationSlider != null) FadeDurationSlider.Value = settings.FadeAnimationDuration;
     }
 
     private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
@@ -125,6 +129,7 @@ public partial class SettingsPanel : UserControl
         }
 
         if (SpotifySyncEnabledCheckBox != null) SpotifySyncEnabledCheckBox.IsEnabled = isConnected;
+        if (FadeEnabledCheckBox != null) FadeEnabledCheckBox.IsEnabled = isConnected;
         if (!isConnected && SpotifyTrackInfo != null) SpotifyTrackInfo.Visibility = Visibility.Collapsed;
     }
 
@@ -155,4 +160,13 @@ public partial class SettingsPanel : UserControl
                 : "Tempo: Unknown";
         }
     }
+
+    private void FadeEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox checkBox)
+            FadeEnabledChanged?.Invoke(this, checkBox.IsChecked ?? true);
+    }
+
+    private void FadeDurationSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>
+        FadeDurationChanged?.Invoke(this, e.NewValue);
 }

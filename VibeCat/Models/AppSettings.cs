@@ -21,6 +21,9 @@ public class AppSettings
     public bool IsClickThrough { get; set; } = false;
     public bool SpotifySyncEnabled { get; set; } = false;
 
+    public bool EnableFadeOnPlaybackChange { get; set; } = true;
+    public double FadeAnimationDuration { get; set; } = 5.0;
+
     [JsonIgnore]
     public string? SpotifyRefreshToken { get; set; }
 

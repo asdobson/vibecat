@@ -55,6 +55,9 @@ public partial class MainWindow : Window
     private SettingsService _settingsService;
     private AppSettings _settings;
     private System.Windows.Threading.DispatcherTimer? _saveTimer;
+    private bool _enableFadeOnPlaybackChange = true;
+    private double _fadeAnimationDuration = 5.0;
+    private double _currentBpm = 120.0;
 
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
@@ -104,11 +107,13 @@ public partial class MainWindow : Window
         SettingsPanel.SnapDistanceChanged += (s, distance) => { SnapDistance = distance; _settings.SnapDistance = distance; SaveSettings(); };
         SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => { IsAutoFlipEnabled = enabled; _settings.IsAutoFlipEnabled = enabled; SaveSettings(); };
         SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
-        SettingsPanel.BPMChanged += (s, bpm) => { if (!_spotifySyncEnabled) CatAnimation.SetPlaybackSpeed(bpm); _settings.BPM = bpm; DebounceSave(); };
+        SettingsPanel.BPMChanged += (s, bpm) => { _currentBpm = bpm; if (!_spotifySyncEnabled) CatAnimation.SetPlaybackSpeed(bpm); _settings.BPM = bpm; DebounceSave(); };
         SettingsPanel.ClickThroughChanged += (s, enabled) => { IsClickThrough = enabled; _settings.IsClickThrough = enabled; SaveSettings(); };
         SettingsPanel.SpotifyConnectRequested += async (s, e) => await ConnectSpotifyAsync();
         SettingsPanel.SpotifyDisconnectRequested += (s, e) => DisconnectSpotify();
         SettingsPanel.SpotifySyncEnabledChanged += (s, enabled) => SetSpotifySyncEnabled(enabled);
+        SettingsPanel.FadeEnabledChanged += (s, enabled) => { _enableFadeOnPlaybackChange = enabled; _settings.EnableFadeOnPlaybackChange = enabled; SaveSettings(); };
+        SettingsPanel.FadeDurationChanged += (s, duration) => { _fadeAnimationDuration = duration; _settings.FadeAnimationDuration = duration; SaveSettings(); };
         ResizeGrip.DragDelta += (s, e) => HandleResize(e);
     }
     
@@ -294,6 +299,17 @@ public partial class MainWindow : Window
         contextMenu.Items.Add(_clickThroughMenuItem);
         contextMenu.Items.Add(new Separator());
 
+        var showWindowMenuItem = new MenuItem { Header = "Show Window" };
+        showWindowMenuItem.Click += (s, e) =>
+        {
+            if (!_isUIMode)
+            {
+                ToggleUIMode();
+            }
+        };
+        contextMenu.Items.Add(showWindowMenuItem);
+        contextMenu.Items.Add(new Separator());
+
         var exitMenuItem = new MenuItem { Header = "Exit" };
         exitMenuItem.Click += (s, e) =>
         {
@@ -371,23 +387,48 @@ public partial class MainWindow : Window
     private void SetupSpotifyService()
     {
         SettingsPanel.SetSpotifyService(_spotifyService);
-        _spotifyService.CurrentTrackChanged += async (_, context) =>
-        {
-            if (!_spotifySyncEnabled)
-                return;
-
-            if (context?.Item is not FullTrack track)
-                return;
-
-            var artistName = track.Artists?.FirstOrDefault()?.Name ?? "Unknown";
-            var songName = track.Name ?? "Unknown";
-
-            var bpm = await _bpmProvider.GetBpmAsync(artistName, songName, track.Id);
-
-            if (bpm != null && bpm.Value > 0)
-                await Dispatcher.InvokeAsync(() => CatAnimation.SetPlaybackSpeed(bpm.Value));
-        };
+        _spotifyService.CurrentTrackChanged += async (_, context) => await HandleSpotifyTrackChanged(context);
     }
+
+    private async Task HandleSpotifyTrackChanged(CurrentlyPlaying? context)
+    {
+        if (!_spotifyService.IsConnected || (!_spotifySyncEnabled && !_enableFadeOnPlaybackChange))
+            return;
+
+        var isPlaying = context?.IsPlaying ?? false;
+
+        if (_enableFadeOnPlaybackChange && !isPlaying)
+        {
+            await AnimateFade(0.0, 30.0);
+            return;
+        }
+
+        var targetBpm = await GetTargetBpm(context);
+
+        if (_enableFadeOnPlaybackChange && isPlaying)
+            await AnimateFade(1.0, targetBpm);
+        else if (_spotifySyncEnabled && targetBpm != _currentBpm)
+        {
+            _currentBpm = targetBpm;
+            await Dispatcher.InvokeAsync(() => CatAnimation.SetPlaybackSpeed(targetBpm));
+        }
+    }
+
+    private async Task<double> GetTargetBpm(CurrentlyPlaying? context)
+    {
+        if (!_spotifySyncEnabled || context?.Item is not FullTrack track)
+            return _currentBpm;
+
+        var artistName = track.Artists?.FirstOrDefault()?.Name ?? "Unknown";
+        var songName = track.Name ?? "Unknown";
+        var bpm = await _bpmProvider.GetBpmAsync(artistName, songName, track.Id);
+
+        return bpm ?? 120.0;
+    }
+
+    private async Task AnimateFade(double opacity, double bpm) =>
+        await Dispatcher.InvokeAsync(() =>
+            CatAnimation.AnimateToState(opacity, bpm, TimeSpan.FromSeconds(_fadeAnimationDuration)));
 
     private async Task ConnectSpotifyAsync()
     {
@@ -412,7 +453,11 @@ public partial class MainWindow : Window
     {
         _spotifySyncEnabled = enabled;
         _settings.SpotifySyncEnabled = enabled;
-        if (!enabled) CatAnimation.SetPlaybackSpeed(SettingsPanel.BPM);
+        if (!enabled)
+        {
+            CatAnimation.ResetFade();
+            CatAnimation.SetPlaybackSpeed(SettingsPanel.BPM);
+        }
         SaveSettings();
     }
 
@@ -429,6 +474,9 @@ public partial class MainWindow : Window
         IsFlipped = _settings.IsFlipped;
         IsClickThrough = _settings.IsClickThrough;
         _spotifySyncEnabled = _settings.SpotifySyncEnabled;
+        _enableFadeOnPlaybackChange = _settings.EnableFadeOnPlaybackChange;
+        _fadeAnimationDuration = _settings.FadeAnimationDuration;
+        _currentBpm = _settings.BPM;
 
         CatAnimation.SetOpacity(_settings.Opacity);
         CatAnimation.SetPlaybackSpeed(_settings.BPM);
