@@ -134,7 +134,62 @@
                         IsEnabled="False"
                         Checked="SpotifySyncEnabledCheckBox_Changed"
                         Unchecked="SpotifySyncEnabledCheckBox_Changed"
-                        Margin="0,0,0,15"/>
+                        Margin="0,0,0,10"/>
+
+                <CheckBox x:Name="FadeEnabledCheckBox"
+                        Content="Fade on playback changes"
+                        Foreground="Gray"
+                        IsChecked="True"
+                        IsEnabled="False"
+                        Checked="FadeEnabledCheckBox_Changed"
+                        Unchecked="FadeEnabledCheckBox_Changed"
+                        Margin="0,0,0,10"/>
+
+                <TextBlock Text="Fade Duration:"
+                         Foreground="Gray"
+                         Margin="0,0,0,5">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ElementName=FadeEnabledCheckBox, Path=IsChecked}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ElementName=SpotifyConnectButton, Path=IsEnabled}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <Grid Margin="0,0,0,15">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ElementName=FadeEnabledCheckBox, Path=IsChecked}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ElementName=SpotifyConnectButton, Path=IsEnabled}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="FadeDurationSlider"
+                          Grid.Column="0"
+                          Minimum="1" Maximum="10" Value="5"
+                          ValueChanged="FadeDurationSlider_ValueChanged"/>
+                    <TextBlock Grid.Column="1"
+                             Text="{Binding ElementName=FadeDurationSlider, Path=Value, StringFormat={}{0:0.0}s}"
+                             Foreground="Gray"
+                             Margin="10,0,0,0"
+                             VerticalAlignment="Center"
+                             MinWidth="40"/>
+                </Grid>
 
                 <Separator Background="#333333" Margin="0,5,0,15"/>
 
