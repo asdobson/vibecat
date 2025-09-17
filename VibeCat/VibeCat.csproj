@@ -6,17 +6,42 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+
+    <!-- Application Icon -->
+    <ApplicationIcon>Resources\app-icon.ico</ApplicationIcon>
+    <Win32Resource />
+
+    <!-- Assembly Information -->
+    <AssemblyTitle>VibeCat</AssemblyTitle>
+    <AssemblyProduct>VibeCat</AssemblyProduct>
+    <AssemblyCompany>Open Source</AssemblyCompany>
+    <AssemblyCopyright>Copyright © 2024</AssemblyCopyright>
+    <AssemblyDescription>Animated desktop cat overlay for Windows</AssemblyDescription>
+
+    <!-- Version Information -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <ProductVersion>1.0.0</ProductVersion>
+
+    <!-- Package Information -->
+    <PackageId>VibeCat</PackageId>
+    <Authors>asdobson</Authors>
+    <PackageDescription>A transparent, always-on-top animated cat that lives on your desktop</PackageDescription>
+    <RepositoryUrl>https://github.com/asdobson/vibecat</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <!-- Application Manifest -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="Resources\frames\*.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="Resources\frames\*.png" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Resources\tray-icon.ico" />
     <Resource Include="Resources\tray-icon-outline.ico" />
+    <Resource Include="Resources\app-icon.ico" />
   </ItemGroup>
 
   <ItemGroup>

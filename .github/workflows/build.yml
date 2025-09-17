@@ -1,0 +1,87 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json', '**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Restore dependencies
+      run: dotnet restore VibeCat/VibeCat.csproj
+
+    - name: Build Debug
+      run: dotnet build VibeCat/VibeCat.csproj -c Debug --no-restore
+
+    - name: Build Release
+      run: dotnet build VibeCat/VibeCat.csproj -c Release --no-restore
+
+    - name: Test Publish (Portable)
+      run: |
+        dotnet publish VibeCat/VibeCat.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:PublishReadyToRun=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:IncludeAllContentForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -p:DebugType=embedded `
+          -o ./test-publish
+
+    - name: Verify Output
+      shell: powershell
+      run: |
+        if (!(Test-Path "./test-publish/VibeCat.exe")) {
+          Write-Error "VibeCat.exe not found in publish output!"
+          exit 1
+        }
+
+        $fileInfo = Get-Item "./test-publish/VibeCat.exe"
+        $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+
+        Write-Host "✅ Build successful!"
+        Write-Host "📦 Output: VibeCat.exe"
+        Write-Host "📊 Size: $sizeMB MB"
+
+        if ($sizeMB -lt 100) {
+          Write-Warning "⚠️ Executable seems small. Expected ~150MB with embedded resources."
+        }
+
+    - name: Upload Build Artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: VibeCat-CI-Build
+        path: ./test-publish/VibeCat.exe
+        retention-days: 7

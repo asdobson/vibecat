@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for changelog generation
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get version from tag
+      id: version
+      shell: powershell
+      run: |
+        if ("${{ github.event.inputs.version }}") {
+          $version = "${{ github.event.inputs.version }}".TrimStart('v')
+        } else {
+          $version = "${{ github.ref_name }}".TrimStart('v')
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "VERSION_TAG=v$version" >> $env:GITHUB_OUTPUT
+        echo "Building version: $version"
+
+    - name: Restore dependencies
+      run: dotnet restore VibeCat/VibeCat.csproj
+
+    - name: Build and Publish
+      run: |
+        dotnet publish VibeCat/VibeCat.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:PublishReadyToRun=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:IncludeAllContentForSelfExtract=true `
+          -p:EnableCompressionInSingleFile=true `
+          -p:DebugType=embedded `
+          -p:Version=${{ steps.version.outputs.VERSION }} `
+          -p:AssemblyVersion=${{ steps.version.outputs.VERSION }} `
+          -p:FileVersion=${{ steps.version.outputs.VERSION }} `
+          -o ./publish
+
+    - name: Generate SHA256
+      shell: powershell
+      run: |
+        $hash = Get-FileHash -Path "./publish/VibeCat.exe" -Algorithm SHA256
+        "$($hash.Hash)  VibeCat.exe" | Out-File -FilePath "./publish/VibeCat.exe.sha256" -Encoding UTF8 -NoNewline
+        echo "SHA256: $($hash.Hash)"
+
+    - name: Create Release Archive
+      shell: powershell
+      run: |
+        Compress-Archive -Path "./publish/VibeCat.exe" -DestinationPath "./VibeCat-${{ steps.version.outputs.VERSION }}-win-x64.zip"
+
+    - name: Generate Release Notes
+      id: changelog
+      shell: powershell
+      run: |
+        $notes = @"
+        ## VibeCat ${{ steps.version.outputs.VERSION_TAG }}
+
+        ### 📦 Download
+        - **[VibeCat.exe](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION_TAG }}/VibeCat.exe)** - Portable executable (no installation required)
+        - **[VibeCat.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION_TAG }}/VibeCat-${{ steps.version.outputs.VERSION }}-win-x64.zip)** - ZIP archive
+
+        ### 📋 Requirements
+        - Windows 10/11 (64-bit)
+        - No .NET runtime required (self-contained)
+
+        ### 🔒 Verification
+        SHA256: See \`VibeCat.exe.sha256\` file
+
+        ### 🚀 Quick Start
+        1. Download \`VibeCat.exe\`
+        2. If Windows SmartScreen appears, click "More info" → "Run anyway"
+        3. Double-click the cat to toggle UI controls
+
+        ### ✨ What's New
+        Please see commit history for changes.
+        "@
+
+        # Save to file for release body
+        $notes | Out-File -FilePath release_notes.md -Encoding UTF8
+        echo "Release notes generated"
+
+    - name: Create GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: |
+          ./publish/VibeCat.exe
+          ./publish/VibeCat.exe.sha256
+          ./VibeCat-${{ steps.version.outputs.VERSION }}-win-x64.zip
+        bodyFile: release_notes.md
+        name: VibeCat ${{ steps.version.outputs.VERSION_TAG }}
+        tag: ${{ steps.version.outputs.VERSION_TAG }}
+        draft: false
+        prerelease: false
+        allowUpdates: true
+        artifactErrorsFailBuild: true
+        token: ${{ secrets.GITHUB_TOKEN }}
