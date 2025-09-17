@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using VibeCat.Services;
+using VibeCat.Models;
 using SpotifyAPI.Web;
 
 namespace VibeCat.Views;
@@ -20,11 +21,25 @@ public partial class SettingsPanel : UserControl
 
     private SpotifyService? _spotifyService;
     private IBpmProvider? _bpmProvider;
+    private AppSettings? _settings;
 
     public SettingsPanel()
     {
         InitializeComponent();
         _bpmProvider = new SongBpmProvider();
+    }
+
+    public void LoadSettings(AppSettings settings)
+    {
+        _settings = settings;
+        if (OpacitySlider != null) OpacitySlider.Value = settings.Opacity * 100;
+        if (SnappingEnabledCheckBox != null) SnappingEnabledCheckBox.IsChecked = settings.IsSnappingEnabled;
+        if (SnapDistanceSlider != null) SnapDistanceSlider.Value = settings.SnapDistance;
+        if (AutoFlipEnabledCheckBox != null) AutoFlipEnabledCheckBox.IsChecked = settings.IsAutoFlipEnabled;
+        if (ManualFlipButton != null) ManualFlipButton.IsEnabled = !settings.IsAutoFlipEnabled;
+        if (BPMSlider != null) BPMSlider.Value = settings.BPM;
+        if (ClickThroughCheckBox != null) ClickThroughCheckBox.IsChecked = settings.IsClickThrough;
+        if (SpotifySyncEnabledCheckBox != null) SpotifySyncEnabledCheckBox.IsChecked = settings.SpotifySyncEnabled;
     }
 
     private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) =>

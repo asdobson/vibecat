@@ -7,6 +7,7 @@ using System.Windows.Media.Animation;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Controls;
 using VibeCat.Services;
+using VibeCat.Models;
 using SpotifyAPI.Web;
 
 namespace VibeCat;
@@ -51,6 +52,9 @@ public partial class MainWindow : Window
     private SpotifyService _spotifyService;
     private IBpmProvider _bpmProvider;
     private bool _spotifySyncEnabled = false;
+    private SettingsService _settingsService;
+    private AppSettings _settings;
+    private System.Windows.Threading.DispatcherTimer? _saveTimer;
 
     public bool IsSnappingEnabled { get; set; } = true;
     public double SnapDistance { get; set; } = 20;
@@ -71,12 +75,17 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        _settingsService = new SettingsService();
+        _settings = _settingsService.Load();
+        LoadSettings();
+
         MouseLeftButtonDown += Window_MouseLeftButtonDown;
         _spotifyService = new SpotifyService();
         _bpmProvider = new SongBpmProvider();
         SetupEventHandlers();
         SetupSystemTray();
         SetupSpotifyService();
+        AutoConnectSpotify();
     }
 
     private void SetupEventHandlers()
@@ -86,16 +95,17 @@ public partial class MainWindow : Window
         TitleBar.MinimizeClicked += (s, e) => WindowState = WindowState.Minimized;
         TitleBar.CloseClicked += (s, e) =>
         {
+            SaveSettings();
             CatAnimation.StopAnimation();
             Application.Current.Shutdown();
         };
-        SettingsPanel.OpacityChanged += (s, opacity) => CatAnimation.SetOpacity(opacity);
-        SettingsPanel.SnappingEnabledChanged += (s, enabled) => IsSnappingEnabled = enabled;
-        SettingsPanel.SnapDistanceChanged += (s, distance) => SnapDistance = distance;
-        SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => IsAutoFlipEnabled = enabled;
+        SettingsPanel.OpacityChanged += (s, opacity) => { CatAnimation.SetOpacity(opacity); _settings.Opacity = opacity; DebounceSave(); };
+        SettingsPanel.SnappingEnabledChanged += (s, enabled) => { IsSnappingEnabled = enabled; _settings.IsSnappingEnabled = enabled; SaveSettings(); };
+        SettingsPanel.SnapDistanceChanged += (s, distance) => { SnapDistance = distance; _settings.SnapDistance = distance; SaveSettings(); };
+        SettingsPanel.AutoFlipEnabledChanged += (s, enabled) => { IsAutoFlipEnabled = enabled; _settings.IsAutoFlipEnabled = enabled; SaveSettings(); };
         SettingsPanel.ManualFlipRequested += (s, e) => ToggleFlip();
-        SettingsPanel.BPMChanged += (s, bpm) => { if (!_spotifySyncEnabled) CatAnimation.SetPlaybackSpeed(bpm); };
-        SettingsPanel.ClickThroughChanged += (s, enabled) => IsClickThrough = enabled;
+        SettingsPanel.BPMChanged += (s, bpm) => { if (!_spotifySyncEnabled) CatAnimation.SetPlaybackSpeed(bpm); _settings.BPM = bpm; DebounceSave(); };
+        SettingsPanel.ClickThroughChanged += (s, enabled) => { IsClickThrough = enabled; _settings.IsClickThrough = enabled; SaveSettings(); };
         SettingsPanel.SpotifyConnectRequested += async (s, e) => await ConnectSpotifyAsync();
         SettingsPanel.SpotifyDisconnectRequested += (s, e) => DisconnectSpotify();
         SettingsPanel.SpotifySyncEnabledChanged += (s, enabled) => SetSpotifySyncEnabled(enabled);
@@ -177,6 +187,10 @@ public partial class MainWindow : Window
         {
             PerformEdgeSnapping();
         }
+
+        _settings.WindowLeft = Left;
+        _settings.WindowTop = Top;
+        DebounceSave();
     }
 
     private void PerformEdgeSnapping()
@@ -226,6 +240,8 @@ public partial class MainWindow : Window
     {
         IsFlipped = flipped;
         CatAnimation.SetFlipped(flipped);
+        _settings.IsFlipped = flipped;
+        SaveSettings();
     }
 
     public void ToggleFlip()
@@ -250,6 +266,9 @@ public partial class MainWindow : Window
         var newWidth = Math.Max(MinimumWindowWidth, Width + e.HorizontalChange);
         Width = newWidth;
         Height = newWidth / AspectRatio;
+        _settings.WindowWidth = Width;
+        _settings.WindowHeight = Height;
+        DebounceSave();
     }
 
     private void SetupSystemTray()
@@ -372,9 +391,15 @@ public partial class MainWindow : Window
 
     private async Task ConnectSpotifyAsync()
     {
-        if (!await _spotifyService.AuthenticateAsync())
+        if (await _spotifyService.AuthenticateAsync())
+        {
+            SaveSettings();
+        }
+        else
+        {
             MessageBox.Show("Failed to connect to Spotify. Please try again.",
                           "Spotify Connection Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void DisconnectSpotify()
@@ -386,6 +411,58 @@ public partial class MainWindow : Window
     private void SetSpotifySyncEnabled(bool enabled)
     {
         _spotifySyncEnabled = enabled;
+        _settings.SpotifySyncEnabled = enabled;
         if (!enabled) CatAnimation.SetPlaybackSpeed(SettingsPanel.BPM);
+        SaveSettings();
+    }
+
+    private void LoadSettings()
+    {
+        Left = _settings.WindowLeft;
+        Top = _settings.WindowTop;
+        Width = _settings.WindowWidth;
+        Height = _settings.WindowHeight;
+
+        IsSnappingEnabled = _settings.IsSnappingEnabled;
+        SnapDistance = _settings.SnapDistance;
+        IsAutoFlipEnabled = _settings.IsAutoFlipEnabled;
+        IsFlipped = _settings.IsFlipped;
+        IsClickThrough = _settings.IsClickThrough;
+        _spotifySyncEnabled = _settings.SpotifySyncEnabled;
+
+        CatAnimation.SetOpacity(_settings.Opacity);
+        CatAnimation.SetPlaybackSpeed(_settings.BPM);
+        CatAnimation.SetFlipped(_settings.IsFlipped);
+
+        SettingsPanel.LoadSettings(_settings);
+    }
+
+    private void SaveSettings()
+    {
+        _settings.SpotifyRefreshToken = _spotifyService.GetRefreshToken();
+        _settingsService.Save(_settings);
+    }
+
+    private void DebounceSave()
+    {
+        _saveTimer?.Stop();
+        _saveTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _saveTimer.Tick += (s, e) =>
+        {
+            _saveTimer?.Stop();
+            SaveSettings();
+        };
+        _saveTimer.Start();
+    }
+
+    private async void AutoConnectSpotify()
+    {
+        if (!string.IsNullOrEmpty(_settings.SpotifyRefreshToken))
+        {
+            await _spotifyService.ConnectWithRefreshTokenAsync(_settings.SpotifyRefreshToken);
+        }
     }
 }
