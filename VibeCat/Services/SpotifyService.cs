@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net;
 using SpotifyAPI.Web;
 using SpotifyAPI.Web.Auth;
@@ -27,6 +28,7 @@ public class SpotifyService
     {
         try
         {
+            DebugLogger.Info("SpotifyService", "Starting authentication flow");
             var (verifier, challenge) = PKCEUtil.GenerateCodes();
             var loginRequest = new LoginRequest(new Uri(RedirectUri), ClientId, LoginRequest.ResponseType.Code)
             {
@@ -42,13 +44,22 @@ public class SpotifyService
             });
 
             var authCode = await WaitForCallbackAsync();
-            if (string.IsNullOrEmpty(authCode)) return false;
+            if (string.IsNullOrEmpty(authCode))
+            {
+                DebugLogger.Warn("SpotifyService", "No auth code received from callback");
+                return false;
+            }
+            DebugLogger.Debug("SpotifyService", () => $"Auth code received: {authCode?.Substring(0, 10)}...");
 
             var tokenResponse = await new OAuthClient().RequestToken(
                 new PKCETokenRequest(ClientId, authCode, new Uri(RedirectUri), verifier));
             return await InitializeSpotifyClient(tokenResponse);
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            DebugLogger.Error("SpotifyService", "Authentication failed", ex);
+            return false;
+        }
     }
 
     private async Task<string?> WaitForCallbackAsync()
@@ -86,18 +97,29 @@ public class SpotifyService
                 new PKCETokenRefreshRequest(ClientId, refreshToken));
             return await InitializeSpotifyClient(tokenResponse);
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            DebugLogger.Error("SpotifyService", "Failed to connect with refresh token", ex);
+            return false;
+        }
     }
 
     private Task<bool> InitializeSpotifyClient(PKCETokenResponse tokenResponse)
     {
         _refreshToken = tokenResponse.RefreshToken;
+        DebugLogger.Info("SpotifyService", () => $"Token received - Expires in: {tokenResponse.ExpiresIn}s, Has refresh token: {!string.IsNullOrEmpty(tokenResponse.RefreshToken)}");
+
         _authenticator = new PKCEAuthenticator(ClientId, tokenResponse);
-        _authenticator.TokenRefreshed += (_, token) => _refreshToken = token.RefreshToken;
+        _authenticator.TokenRefreshed += (_, token) =>
+        {
+            _refreshToken = token.RefreshToken;
+            DebugLogger.Info("SpotifyService", () => $"Token refreshed - New expiry: {token.ExpiresIn}s");
+        };
 
         _spotify = new SpotifyClient(SpotifyClientConfig.CreateDefault().WithAuthenticator(_authenticator));
 
         ConnectionStatusChanged?.Invoke(this, true);
+        DebugLogger.Info("SpotifyService", "Spotify client initialized successfully");
         StartPolling();
         return Task.FromResult(true);
     }
@@ -106,25 +128,40 @@ public class SpotifyService
     {
         _pollingCancellationTokenSource?.Cancel();
         _pollingCancellationTokenSource = new CancellationTokenSource();
+        DebugLogger.Info("SpotifyService", "Starting polling loop");
 
         Task.Run(async () =>
         {
             var token = _pollingCancellationTokenSource.Token;
+            var pollCount = 0;
+            DebugLogger.Debug("SpotifyService", () => $"Polling thread started - Thread ID: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
             while (!token.IsCancellationRequested && _spotify != null)
             {
                 try
                 {
+                    pollCount++;
+                    DebugLogger.Debug("SpotifyService", () => $"Poll attempt {pollCount}: Getting current playback");
                     var current = await _spotify.Player.GetCurrentlyPlaying(new PlayerCurrentlyPlayingRequest());
+                    DebugLogger.Debug("SpotifyService", () => $"Poll {pollCount} response: Item={current?.Item != null}, IsPlaying={current?.IsPlaying}, Type={current?.CurrentlyPlayingType}");
                     if (HasTrackChanged(current) || HasPlaybackStateChanged(current))
                     {
+                        var track = current?.Item as SpotifyAPI.Web.FullTrack;
+                        DebugLogger.Info("SpotifyService", () => $"Track changed: {track?.Name} by {string.Join(", ", track?.Artists?.Select(a => a.Name) ?? new[] { "Unknown" })}");
                         CurrentTrack = current;
                         IsPlaying = current?.IsPlaying;
                         CurrentTrackChanged?.Invoke(this, current);
                     }
                     await Task.Delay(500, token);
                 }
-                catch { await Task.Delay(3000, token); }
+                catch (Exception ex)
+                {
+                    DebugLogger.Error("SpotifyService", () => $"Polling error at attempt {pollCount}", ex);
+                    DebugLogger.Debug("SpotifyService", "Waiting 3 seconds before retry...");
+                    await Task.Delay(3000, token);
+                }
             }
+            DebugLogger.Warn("SpotifyService", () => $"Polling loop exited - Token cancelled: {token.IsCancellationRequested}, Spotify null: {_spotify == null}");
         });
     }
 
@@ -140,6 +177,7 @@ public class SpotifyService
 
     public void Disconnect()
     {
+        DebugLogger.Info("SpotifyService", "Disconnecting from Spotify");
         _pollingCancellationTokenSource?.Cancel();
         _spotify = null;
         _authenticator = null;

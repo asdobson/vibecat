@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -77,6 +78,13 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        DebugLogger.Info("MainWindow", "VibeCat starting up");
+
+        // Show debug mode in title if enabled
+        if (DebugLogger.IsEnabled)
+        {
+            Title = "VibeCat [DEBUG MODE]";
+        }
 
         _settingsService = new SettingsService();
         _settings = _settingsService.Load();
@@ -392,8 +400,12 @@ public partial class MainWindow : Window
 
     private async Task HandleSpotifyTrackChanged(CurrentlyPlaying? context)
     {
+        DebugLogger.Debug("MainWindow", () => $"Track change event received - Has context: {context != null}, Has item: {context?.Item != null}");
         if (!_spotifyService.IsConnected || (!_spotifySyncEnabled && !_enableFadeOnPlaybackChange))
+        {
+            DebugLogger.Debug("MainWindow", () => $"Track change ignored - Connected: {_spotifyService.IsConnected}, Sync: {_spotifySyncEnabled}, Fade: {_enableFadeOnPlaybackChange}");
             return;
+        }
 
         var isPlaying = context?.IsPlaying ?? false;
 
@@ -404,6 +416,7 @@ public partial class MainWindow : Window
         }
 
         var targetBpm = await GetTargetBpm(context);
+        DebugLogger.Debug("MainWindow", () => $"Target BPM: {targetBpm}");
 
         if (_enableFadeOnPlaybackChange && isPlaying)
             await AnimateFade(1.0, targetBpm);
@@ -416,12 +429,15 @@ public partial class MainWindow : Window
 
     private async Task<double> GetTargetBpm(CurrentlyPlaying? context)
     {
+        DebugLogger.Debug("MainWindow", "Getting target BPM for current context");
         if (!_spotifySyncEnabled || context?.Item is not FullTrack track)
             return _currentBpm;
 
         var artistName = track.Artists?.FirstOrDefault()?.Name ?? "Unknown";
         var songName = track.Name ?? "Unknown";
+        DebugLogger.Info("MainWindow", () => $"Looking up BPM for: {artistName} - {songName}");
         var bpm = await _bpmProvider.GetBpmAsync(artistName, songName, track.Id);
+        DebugLogger.Debug("MainWindow", () => $"BPM lookup result: {bpm?.ToString() ?? "null"}");
 
         return bpm ?? 120.0;
     }
@@ -463,6 +479,7 @@ public partial class MainWindow : Window
 
     private void LoadSettings()
     {
+        DebugLogger.Info("MainWindow", "Loading settings");
         Left = _settings.WindowLeft;
         Top = _settings.WindowTop;
         Width = _settings.WindowWidth;
@@ -483,10 +500,12 @@ public partial class MainWindow : Window
         CatAnimation.SetFlipped(_settings.IsFlipped);
 
         SettingsPanel.LoadSettings(_settings);
+        DebugLogger.Debug("MainWindow", () => $"Settings loaded - Window: {Width}x{Height} @ {Left},{Top}, BPM: {_currentBpm}, Spotify sync: {_spotifySyncEnabled}");
     }
 
     private void SaveSettings()
     {
+        DebugLogger.Debug("MainWindow", "Saving settings");
         _settings.SpotifyRefreshToken = _spotifyService.GetRefreshToken();
         _settingsService.Save(_settings);
     }
@@ -510,7 +529,9 @@ public partial class MainWindow : Window
     {
         if (!string.IsNullOrEmpty(_settings.SpotifyRefreshToken))
         {
-            await _spotifyService.ConnectWithRefreshTokenAsync(_settings.SpotifyRefreshToken);
+            DebugLogger.Info("MainWindow", "Auto-connecting to Spotify with saved token");
+            var connected = await _spotifyService.ConnectWithRefreshTokenAsync(_settings.SpotifyRefreshToken);
+            DebugLogger.Info("MainWindow", () => $"Auto-connect result: {(connected ? "Success" : "Failed")}");
         }
     }
 }

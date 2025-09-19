@@ -24,11 +24,16 @@ public class SongBpmProvider : IBpmProvider
 
     public async Task<float?> GetBpmAsync(string artist, string song, string? spotifyTrackId = null)
     {
+        DebugLogger.Debug("SongBpmProvider", () => $"BPM request for: {artist} - {song} (Spotify ID: {spotifyTrackId ?? "none"})");
         var cacheKey = spotifyTrackId ?? $"{artist}-{song}";
 
         if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.Now - cached.timestamp < _cacheExpiration)
+        {
+            DebugLogger.Debug("SongBpmProvider", () => $"Cache hit for {cacheKey}: {cached.bpm} BPM");
             return cached.bpm;
+        }
 
+        DebugLogger.Debug("SongBpmProvider", () => $"Cache miss, searching songbpm.com for: {artist} - {song}");
         var results = await SearchSongsAsync($"{artist} - {song}");
 
         var bpm = spotifyTrackId != null
@@ -38,7 +43,14 @@ public class SongBpmProvider : IBpmProvider
         bpm ??= results.FirstOrDefault(r => r.Bpm.HasValue)?.Bpm;
 
         if (bpm.HasValue)
+        {
             _cache[cacheKey] = (bpm.Value, DateTime.Now);
+            DebugLogger.Info("SongBpmProvider", () => $"Found BPM for {artist} - {song}: {bpm} BPM");
+        }
+        else
+        {
+            DebugLogger.Warn("SongBpmProvider", () => $"No BPM found for: {artist} - {song}");
+        }
 
         CleanupCache();
         return bpm;
@@ -46,26 +58,45 @@ public class SongBpmProvider : IBpmProvider
 
     private async Task<List<SongResult>> SearchSongsAsync(string query)
     {
-        var response = await _httpClient.PostAsync(
-            "https://songbpm.com/searches",
-            new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("query", query) })
-        );
+        try
+        {
+            DebugLogger.Debug("SongBpmProvider", () => $"Sending POST to https://songbpm.com/searches with query: {query}");
+            var response = await _httpClient.PostAsync(
+                "https://songbpm.com/searches",
+                new FormUrlEncodedContent(new[] { new KeyValuePair<string, string>("query", query) })
+            );
+            DebugLogger.Debug("SongBpmProvider", () => $"Response status: {response.StatusCode}");
 
-        if (!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
+            {
+                DebugLogger.Warn("SongBpmProvider", () => $"Failed response from songbpm.com: {response.StatusCode}");
+                return new List<SongResult>();
+            }
+
+            var html = await response.Content.ReadAsStringAsync();
+            DebugLogger.Debug("SongBpmProvider", () => $"Received HTML response, length: {html.Length} chars");
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var songCards = doc.DocumentNode.SelectNodes("//div[contains(@class, 'bg-card')]");
+            if (songCards == null)
+            {
+                DebugLogger.Warn("SongBpmProvider", "No song cards found in HTML response");
+                return new List<SongResult>();
+            }
+
+            var results = songCards
+                .Select(ParseSongCard)
+                .Where(r => r != null)
+                .ToList()!;
+            DebugLogger.Debug("SongBpmProvider", () => $"Found {results.Count} songs in search results");
+            return results;
+        }
+        catch (Exception ex)
+        {
+            DebugLogger.Error("SongBpmProvider", "Failed to search songs", ex);
             return new List<SongResult>();
-
-        var html = await response.Content.ReadAsStringAsync();
-        var doc = new HtmlDocument();
-        doc.LoadHtml(html);
-
-        var songCards = doc.DocumentNode.SelectNodes("//div[contains(@class, 'bg-card')]");
-        if (songCards == null)
-            return new List<SongResult>();
-
-        return songCards
-            .Select(ParseSongCard)
-            .Where(r => r != null)
-            .ToList()!;
+        }
     }
 
     private SongResult? ParseSongCard(HtmlNode card)
