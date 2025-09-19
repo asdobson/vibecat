@@ -173,6 +173,56 @@ VibeCat/
 - **BPM Range**: 60-180 (default 115)
 - **Dependencies**: SpotifyAPI.Web, HtmlAgilityPack, NotifyIcon.Wpf
 
+## 🔍 Troubleshooting & Debug Mode
+
+### Debug Mode
+
+If you're experiencing issues with Spotify sync or other features, enable debug mode:
+
+```powershell
+# Run VibeCat in debug mode
+.\VibeCat.exe --debug
+
+# Or use the short flag
+.\VibeCat.exe -d
+```
+
+Debug logs are written to:
+- **Location**: `%LOCALAPPDATA%\VibeCat\debug.log`
+- **Full path**: `C:\Users\[YourUsername]\AppData\Local\VibeCat\debug.log`
+
+#### View logs in real-time:
+```powershell
+Get-Content "$env:LOCALAPPDATA\VibeCat\debug.log" -Wait -Tail 50
+```
+
+#### Clear old logs:
+```powershell
+Remove-Item "$env:LOCALAPPDATA\VibeCat\debug*.log"
+```
+
+The debug log includes:
+- Spotify authentication attempts and token refresh
+- Track change detection and polling status
+- BPM lookup attempts and results
+- Network errors and API responses
+- Settings load/save operations
+- Memory usage statistics
+
+**Note**: Logs auto-rotate at 10MB, keeping only the last 3 archives.
+
+### Common Issues
+
+**Spotify not updating track:**
+1. Ensure Spotify desktop/web player is actively playing
+2. Check VibeCat shows "Connected" in settings
+3. Run in debug mode and check for polling errors
+4. Try disconnect/reconnect in settings
+
+**High memory usage:**
+- Normal: ~1GB (330 high-res PNG frames loaded)
+- This is expected behavior for smooth animation
+
 ## 📄 License
 
 MIT License - See [LICENSE](LICENSE) file for details.
